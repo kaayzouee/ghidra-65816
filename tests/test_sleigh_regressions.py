@@ -17,13 +17,13 @@ SINC = (LANGUAGES / "658xx.sinc").read_text(encoding="utf-8")
 
 def instruction_blocks(mnemonic: str) -> list[tuple[str, str]]:
     """Return (constructor header, semantic body) pairs for an instruction."""
-    starts = list(re.finditer(rf"(?m)^:{re.escape(mnemonic)}\\b", SINC))
+    starts = list(re.finditer(rf"(?m)^:{re.escape(mnemonic)}\b", SINC))
     blocks = []
     for match in starts:
         brace = SINC.find("{", match.start())
         if brace < 0:
             continue
-        close = SINC.find("\\n}", brace)
+        close = SINC.find("\n}", brace)
         if close < 0:
             continue
         blocks.append((SINC[match.start():brace], SINC[brace + 1:close]))
@@ -97,7 +97,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         _, body = blocks[0]
         self.assertRegex(
             body,
-            r"local old_a:1 = A;\\s*A = B;\\s*B = old_a;\\s*flag8_NZ\\(A\\);",
+            r"local old_a:1 = A;\s*A = B;\s*B = old_a;\s*flag8_NZ\(A\);",
         )
 
     def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
