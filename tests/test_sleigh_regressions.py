@@ -130,14 +130,14 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertEqual(len(emulation), 1)
 
         native_body = native[0]
-        to_emulation = native_body.split("\\n#    <to_emulation>", 1)[1].split("\\n    <to_native>", 1)[0]
+        to_emulation = native_body.split("\n#    <to_emulation>", 1)[1].split("\n    <to_native>", 1)[0]
         self.assertIn("XHigh = 0;", to_emulation)
         self.assertIn("YHigh = 0;", to_emulation)
         self.assertIn("SPHigh = 1;", to_emulation)
         self.assertIn("CF = 0;", native_body)
 
         emulation_body = emulation[0]
-        to_native = emulation_body.split("\\n    <to_native>", 1)[1].split("\\n    <end>", 1)[0]
+        to_native = emulation_body.split("\n    <to_native>", 1)[1].split("\n    <end>", 1)[0]
         self.assertIn("XHigh = 0;", to_native)
         self.assertIn("YHigh = 0;", to_native)
         self.assertIn("CF = 1;", emulation_body)
