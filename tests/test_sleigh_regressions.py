@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 LANGUAGES = ROOT / "data" / "languages"
 SINC = (LANGUAGES / "658xx.sinc").read_text(encoding="utf-8")
+MEMACCESS = (LANGUAGES / "658xx_memaccess.sinc").read_text(encoding="utf-8")
 
 
 def instruction_blocks(mnemonic: str) -> list[tuple[str, str]]:
@@ -112,6 +113,19 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                 self.assertIn(f"C = zext({source});", matches[0])
                 self.assertIn("flag16_NZ(C);", matches[0])
                 self.assertNotIn(f"flag8_NZ({source});", matches[0])
+
+
+class MemoryAddressingRegressionTests(unittest.TestCase):
+    def test_emulation_zero_page_wrap_requires_entire_direct_page_to_be_zero(self) -> None:
+        direct_macro = re.search(
+            r"macro ref_direct\(_out, _offset32\)\s*\{(.*?)\n\}",
+            MEMACCESS,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(direct_macro)
+        body = direct_macro.group(1)
+        self.assertIn("($(EF) == 1) && (DP == 0)", body)
+        self.assertNotIn("(DPLow == 0)", body)
 
 
 if __name__ == "__main__":
