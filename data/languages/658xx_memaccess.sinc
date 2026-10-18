@@ -145,12 +145,14 @@ macro push_status_native() {
     push8_native(status);
 }
 
-macro push_status_emulation() {
+macro push_status_emulation(_break) {
     local status:1 = 0;
     status[7,1] = NF;
     status[6,1] = VF;
-    # bit 5 unused
-    status[4,1] = BF;
+    # Bit 5 is reserved but reads as one in an emulation-mode status image.
+    status[5,1] = 1;
+    # Bit 4 is the synthetic B bit in the stacked copy, not a live flag.
+    status[4,1] = _break;
     status[3,1] = DF;
     status[2,1] = IF;
     status[1,1] = ZF;
@@ -177,8 +179,7 @@ macro pull_status_emulation() {
     pull8_emulation(status);
     NF = status[7,1];
     VF = status[6,1];
-    # bit 5 unused
-    BF = status[4,1];
+    # Bits 5 and 4 are not live flags in emulation mode; ignore both on pull.
     DF = status[3,1];
     IF = status[2,1];
     ZF = status[1,1];
