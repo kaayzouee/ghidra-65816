@@ -471,7 +471,7 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
 
     result = sext(A) - sext(data);
     flag8_NZ(result:1);
-    CF = result s>= 0;
+    CF = A >= data;
 }
 
 # CMP 16 bit.
@@ -485,7 +485,7 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
 
     result = sext(C) - sext(data);
     flag16_NZ(result:2);
-    CF = result s>= 0;
+    CF = C >= data;
 }
 
 # COP native.
@@ -530,7 +530,7 @@ CPXY_OP: RefImmXF    is bbb=0; RefImmXF  { export RefImmXF; }
     local data:1; deref_read8(data, CPXY_OP);
     local result:4 = sext(XLow) - sext(data);
     flag8_NZ(result:1);
-    CF = result s>= 0;
+    CF = XLow >= data;
 }
 
 # CPX 16 bit.
@@ -538,23 +538,23 @@ CPXY_OP: RefImmXF    is bbb=0; RefImmXF  { export RefImmXF; }
     local data:2; deref_read16(data, CPXY_OP);
     local result:4 = sext(X) - sext(data);
     flag16_NZ(result:2);
-    CF = result s>= 0;
+    CF = X >= data;
 }
 
 # CPY 8 bit.
-:CPY CPXY_OP    is (ctx_XF=0 & (op=0xc0 | op=0xcc | op=0xc4)) ... & CPXY_OP {
+:CPY CPXY_OP    is (ctx_XF=1 & (op=0xc0 | op=0xcc | op=0xc4)) ... & CPXY_OP {
     local data:1; deref_read8(data, CPXY_OP);
     local result:4 = sext(YLow) - sext(data);
     flag8_NZ(result:1);
-    CF = result s>= 0;
+    CF = YLow >= data;
 }
 
 # CPY 16 bit.
-:CPY CPXY_OP    is (ctx_XF=1 & (op=0xc0 | op=0xcc | op=0xc4)) ... & CPXY_OP {
+:CPY CPXY_OP    is (ctx_XF=0 & (op=0xc0 | op=0xcc | op=0xc4)) ... & CPXY_OP {
     local data:2; deref_read16(data, CPXY_OP);
     local result:4 = sext(Y) - sext(data);
     flag16_NZ(result:2);
-    CF = result s>= 0;
+    CF = Y >= data;
 }
 
 DEC_INC_OP: SEC_OP_X    is (cc=2) ... & SEC_OP_X  { export SEC_OP_X; }
@@ -1916,7 +1916,7 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
 :TXA    is op=0x8a & ctx_XF=1 & ctx_MF=0
 {
     C = zext(XLow);
-    flag8_NZ(XLow);
+    flag16_NZ(C);
 }
 # TXA  16 -> 16
 :TXA    is op=0x8a & ctx_XF=0 & ctx_MF=0
@@ -1965,7 +1965,7 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
 :TYA    is op=0x98 & ctx_XF=1 & ctx_MF=0
 {
     C = zext(YLow);
-    flag8_NZ(YLow);
+    flag16_NZ(C);
 }
 # TYA  16 -> 16
 :TYA    is op=0x98 & ctx_XF=0 & ctx_MF=0
@@ -1999,10 +1999,10 @@ define pcodeop wai;
 
 :XBA    is op=0xeb
 {
-    local old_b:1 = A;
-    B = A;
-    A = old_b;
-    flag8_NZ(old_b);
+    local old_a:1 = A;
+    A = B;
+    B = old_a;
+    flag8_NZ(A);
 }
 
 # XCE native -> ?
