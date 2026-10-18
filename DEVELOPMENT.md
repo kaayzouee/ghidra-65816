@@ -30,7 +30,7 @@ The script compiles a temporary copy of `data/languages` twice and checks that t
 ## Runtime P-code tests
 
 CI also compiles the language into a temporary external Ghidra module and runs JUnit tests against
-Ghidra's `PcodeEmulator`. The current suite executes fifteen instruction sequences:
+Ghidra's `PcodeEmulator`. The current suite executes seventeen instruction sequences:
 
 | Instruction | Cases |
 | --- | --- |
