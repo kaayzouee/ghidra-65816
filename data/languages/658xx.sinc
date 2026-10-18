@@ -1750,6 +1750,9 @@ define pcodeop stop;
 :STP    is op=0xdb
 {
     stop();
+    # SLEIGH has no native halt-flow operator; a self-loop prevents treating
+    # the instruction as normal fall-through. Hardware reset is external.
+    goto inst_start;
 }
 
 STX_OP: SEC_OP_COMMON    is SEC_OP_COMMON  { export SEC_OP_COMMON; }
