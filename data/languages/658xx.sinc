@@ -1745,11 +1745,11 @@ macro do_sep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
 }
 
 define pcodeop stop;
+# STP halts execution until hardware reset. Do not synthesize a reset-vector
+# read/jump here: that would model reset as an immediate consequence of STP.
 :STP    is op=0xdb
 {
     stop();
-    local target:3 = zext(*:2 0x00FFFC:3);
-    goto [target];
 }
 
 STX_OP: SEC_OP_COMMON    is SEC_OP_COMMON  { export SEC_OP_COMMON; }
@@ -2009,8 +2009,10 @@ define pcodeop wai;
 # UNKNOWN: the correct behaviour of XCE when native -> native
 :XCE    is ctx_EF=0 & op=0xfb
     [ ctx_EF=CF; globalset(inst_next, ctx_EF);
-      ctx_MF=1; globalset(inst_next, ctx_MF);
-      ctx_XF=1; globalset(inst_next, ctx_XF); ]
+      # If carry is clear, native mode is retained and M/X must be preserved.
+      # If carry is set, XCE enters emulation mode and both widths are forced to 8 bits.
+      ctx_MF=ctx_MF | CF; globalset(inst_next, ctx_MF);
+      ctx_XF=ctx_XF | CF; globalset(inst_next, ctx_XF); ]
 {
     local is_to_native:1 = (CF == 0);
     if (is_to_native) goto <to_native>;
@@ -2022,10 +2024,9 @@ define pcodeop wai;
     goto <end>;
 
     <to_native>
-    # It's not clear what happens when XCE re-switches into the current mode.
-    # I've assumed everything happens just as it would in a "real" mode switch.
-    XHigh = 0;
-    YHigh = 0;
+    # This constructor starts in native mode. With carry clear, XCE leaves
+    # the CPU in native mode, so preserve 16-bit index-register values.
+    goto <end>;
 
     <end>
     CF = 0;
