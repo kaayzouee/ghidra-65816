@@ -363,6 +363,67 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void mvnSixteenBitCopiesCountPlusOneAndUpdatesBanksAndIndexes() throws Exception {
+        Run run = start(new byte[] {0x54, 0x02, 0x01}); // MVN dest=$02, src=$01
+        setContextBit(run, "ctx_XF", 0);
+        writeRegister(run, "X", 0x0010);
+        writeRegister(run, "Y", 0x0020);
+        writeRegister(run, "C", 0x0002); // A is the byte count minus one
+        writeMemory(run, 0x010010, new byte[] {0x11, 0x22, 0x33});
+
+        executeOne(run);
+
+        assertEquals(0x11, readMemory(run, 0x020020, 1));
+        assertEquals(0x22, readMemory(run, 0x020021, 1));
+        assertEquals(0x33, readMemory(run, 0x020022, 1));
+        assertEquals(0x0013, readRegister(run, "X"));
+        assertEquals(0x0023, readRegister(run, "Y"));
+        assertEquals(0xffff, readRegister(run, "C"));
+        assertEquals(0x02, readRegister(run, "DBR"));
+    }
+
+    @Test
+    void mvpSixteenBitCopiesBackwardsAndUpdatesBanksAndIndexes() throws Exception {
+        Run run = start(new byte[] {0x44, 0x02, 0x01}); // MVP dest=$02, src=$01
+        setContextBit(run, "ctx_XF", 0);
+        writeRegister(run, "X", 0x0012);
+        writeRegister(run, "Y", 0x0022);
+        writeRegister(run, "C", 0x0002);
+        writeMemory(run, 0x010010, new byte[] {0x11, 0x22, 0x33});
+
+        executeOne(run);
+
+        assertEquals(0x11, readMemory(run, 0x020020, 1));
+        assertEquals(0x22, readMemory(run, 0x020021, 1));
+        assertEquals(0x33, readMemory(run, 0x020022, 1));
+        assertEquals(0x000f, readRegister(run, "X"));
+        assertEquals(0x001f, readRegister(run, "Y"));
+        assertEquals(0xffff, readRegister(run, "C"));
+        assertEquals(0x02, readRegister(run, "DBR"));
+    }
+
+    @Test
+    void mvnEightBitIndexesWrapWithinLowByte() throws Exception {
+        Run run = start(new byte[] {0x54, 0x02, 0x01}); // MVN dest=$02, src=$01
+        setContextBit(run, "ctx_XF", 1);
+        writeRegister(run, "X", 0x00fe);
+        writeRegister(run, "Y", 0x00fe);
+        writeRegister(run, "C", 0x0002);
+        writeMemory(run, 0x0100fe, new byte[] {0x11, 0x22});
+        writeMemory(run, 0x010000, new byte[] {0x33});
+
+        executeOne(run);
+
+        assertEquals(0x11, readMemory(run, 0x0200fe, 1));
+        assertEquals(0x22, readMemory(run, 0x0200ff, 1));
+        assertEquals(0x33, readMemory(run, 0x020000, 1));
+        assertEquals(0x0001, readRegister(run, "X"));
+        assertEquals(0x0001, readRegister(run, "Y"));
+        assertEquals(0xffff, readRegister(run, "C"));
+        assertEquals(0x02, readRegister(run, "DBR"));
+    }
+
+    @Test
     void xbaExchangesAccumulatorBytes() throws Exception {
         Run run = start(new byte[] {(byte) 0xeb}); // XBA
         writeRegister(run, "A", 0x12);
