@@ -2011,7 +2011,10 @@ define pcodeop wai;
 # XCE native -> ?
 # UNKNOWN: the correct behaviour of XCE when native -> native
 :XCE    is ctx_EF=0 & op=0xfb
-    [ ctx_EF=CF; globalset(inst_next, ctx_EF);
+    [ # This is only a static disassembly-context hint. CF is a runtime flag,
+      # so globalset cannot reliably select the next decode mode when Carry is unknown.
+      # Runtime mode transitions after XCE remain a known approximation in this spec.
+      ctx_EF=CF; globalset(inst_next, ctx_EF);
       # If carry is clear, native mode is retained and M/X must be preserved.
       # If carry is set, XCE enters emulation mode and both widths are forced to 8 bits.
       ctx_MF=ctx_MF | CF; globalset(inst_next, ctx_MF);
