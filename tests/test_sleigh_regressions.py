@@ -163,7 +163,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                     if "ctx_EF=0" in header
                 ]
                 self.assertEqual(len(blocks), 1)
-                self.assertIn("pull_status_native();", blocks[0])
+                self.assertIn("pull_status_native(status);", blocks[0])
                 self.assertNotIn("pull_status_emulation();", blocks[0])
 
     def test_interrupt_entry_stacks_state_before_changing_live_flags(self) -> None:
