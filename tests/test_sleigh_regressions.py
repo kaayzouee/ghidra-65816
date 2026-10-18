@@ -146,6 +146,62 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                 self.assertIn("PBR = 0;", body)
                 self.assertLess(body.index("PBR = 0;"), body.index("goto [target];"))
 
+    def test_plp_and_rti_use_mode_specific_status_pull(self) -> None:
+        for mnemonic in ("PLP", "RTI"):
+            with self.subTest(mnemonic=mnemonic, mode="emulation"):
+                blocks = [
+                    body for header, body in instruction_blocks(mnemonic)
+                    if "ctx_EF=1" in header
+                ]
+                self.assertEqual(len(blocks), 1)
+                self.assertIn("pull_status_emulation();", blocks[0])
+                self.assertNotIn("pull_status_native();", blocks[0])
+
+            with self.subTest(mnemonic=mnemonic, mode="native"):
+                blocks = [
+                    body for header, body in instruction_blocks(mnemonic)
+                    if "ctx_EF=0" in header
+                ]
+                self.assertEqual(len(blocks), 1)
+                self.assertIn("pull_status_native();", blocks[0])
+                self.assertNotIn("pull_status_emulation();", blocks[0])
+
+    def test_rti_restores_pc_with_mode_appropriate_bank_handling(self) -> None:
+        emulation = [
+            body for header, body in instruction_blocks("RTI")
+            if "ctx_EF=1" in header
+        ]
+        native = [
+            body for header, body in instruction_blocks("RTI")
+            if "ctx_EF=0" in header
+        ]
+        self.assertEqual(len(emulation), 1)
+        self.assertIn("pull16_emulation(pc);", emulation[0])
+        self.assertIn("(zext(PBR) << 16) | zext(pc)", emulation[0])
+        self.assertNotIn("pull8_emulation(pbr)", emulation[0])
+
+        self.assertEqual(len(native), 1)
+        self.assertIn("pull16_native(pc);", native[0])
+        self.assertIn("pull8_native(pbr);", native[0])
+        self.assertIn("(zext(pbr) << 16) | zext(pc)", native[0])
+
+    def test_software_interrupts_clear_pbr_before_vector_transfer(self) -> None:
+        vectors = {"BRK": ("0x00FFE6", "0x00FFFE"),
+                   "COP": ("0x00FFE4", "0x00FFF4")}
+        for mnemonic, (native_vector, emulation_vector) in vectors.items():
+            blocks = instruction_blocks(mnemonic)
+            for mode, vector in (("native", native_vector), ("emulation", emulation_vector)):
+                with self.subTest(mnemonic=mnemonic, mode=mode):
+                    matches = [
+                        body for header, body in blocks
+                        if f"ctx_EF={'0' if mode == 'native' else '1'}" in header
+                    ]
+                    self.assertEqual(len(matches), 1)
+                    body = matches[0]
+                    self.assertIn("PBR = 0;", body)
+                    self.assertLess(body.index("PBR = 0;"), body.index("goto [target];"))
+                    self.assertIn(vector, body)
+
     def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
         for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
             with self.subTest(mnemonic=mnemonic):
