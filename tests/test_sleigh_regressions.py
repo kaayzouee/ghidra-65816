@@ -106,7 +106,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         _, body = blocks[0]
         self.assertIn("stop();", body)
         self.assertNotIn("0x00FFFC", body)
-        self.assertNotRegex(body, r"\\bgoto\\s+\\[")
+        self.assertNotRegex(body, r"\bgoto\s+\[")
 
     def test_native_xce_preserves_width_context_and_index_high_bytes(self) -> None:
         blocks = instruction_blocks("XCE")
@@ -118,8 +118,8 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertIn("ctx_XF=ctx_XF | CF", header)
 
         native_to_native = body.split("<to_native>", 1)[1].split("<end>", 1)[0]
-        self.assertNotRegex(native_to_native, r"\\bXHigh\\s*=\\s*0")
-        self.assertNotRegex(native_to_native, r"\\bYHigh\\s*=\\s*0")
+        self.assertNotRegex(native_to_native, r"\bXHigh\s*=\s*0")
+        self.assertNotRegex(native_to_native, r"\bYHigh\s*=\s*0")
 
     def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
         for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
