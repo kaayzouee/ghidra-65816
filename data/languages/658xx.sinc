@@ -1256,17 +1256,15 @@ macro do_lsr16(_out, _data) {
 }
 
 # PLP native.
-# UNSUPPORTED: pulling the context flags MF and XF.
-define pcodeop unknown_native_status_pull;
+# The pulled status byte determines runtime X/Y high-byte clearing, but not static decode context.
 :PLP    is (ctx_EF=0 & op=0x28)
 {
-    pull_status_native();
-    # Don't know whether XF is now set.
-    local is_x16:1 = unknown_native_status_pull();
+    local status:1;
+    pull_status_native(status);
+    local is_x16:1 = (status[4,1] == 0);
 
     if (is_x16) goto <skip_shrink>;
-    # "When a sixteen-bit index register is switched to eight bits, the high byte is lost
-    # irretrievably and replaced by a zero."
+    # When the stacked X flag selects 8-bit indexes, the high bytes are lost and zeroed.
     XHigh = 0;
     YHigh = 0;
 
@@ -1465,15 +1463,15 @@ macro do_ror16(_out, _data) {
 }
 
 # RTI native.
-# UNSUPPORTED: pulling the context flags MF and XF.
+# Runtime index high-byte cleanup follows the pulled X bit; static MF/XF context remains unknown.
 :RTI    is (ctx_EF=0 & op=0x40)
 {
-    pull_status_native();
-    local is_x16:1 = unknown_native_status_pull();
+    local status:1;
+    pull_status_native(status);
+    local is_x16:1 = (status[4,1] == 0);
 
     if (is_x16) goto <skip_shrink>;
-    # "When a sixteen-bit index register is switched to eight bits, the high byte is lost
-    # irretrievably and replaced by a zero."
+    # When the stacked X flag selects 8-bit indexes, the high bytes are lost and zeroed.
     XHigh = 0;
     YHigh = 0;
 
