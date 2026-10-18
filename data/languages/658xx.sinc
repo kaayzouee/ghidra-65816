@@ -419,6 +419,7 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
     push_status_emulation(1:1);
     IF = 1;
     DF = 0;
+    PBR = 0;
 
     local target:3 = zext(*:2 0x00FFFE:3);
     goto [target];
@@ -516,6 +517,7 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
     push_status_emulation(1:1);
     IF = 1;
     DF = 0;
+    PBR = 0;
 
     local target:3 = zext(*:2 0x00FFF4:3);
     goto [target];
