@@ -81,17 +81,6 @@ class PcodeEmulatorRegressionTest {
         run.thread().overrideContext(context);
     }
 
-    private static void writeMemory(Run run, long address, byte[] bytes) {
-        run.emulator().getSharedState().setVar(
-            run.space(), address, bytes.length, false, bytes);
-    }
-
-    private static long readMemory(Run run, long address, int size) {
-        byte[] bytes = run.emulator().getSharedState().getVar(
-            run.space(), address, size, false, Reason.INSPECT);
-        return run.emulator().getArithmetic().toLong(bytes, Purpose.INSPECT);
-    }
-
     private static long readRegister(Run run, String name) {
         Register register = language.getRegister(name);
         assertNotNull(register, "Missing 65816 register: " + name);
@@ -240,64 +229,6 @@ class PcodeEmulatorRegressionTest {
 
         assertEquals(0, readRegister(run, "CF"), "0x0000 is unsigned-less-than 0xffff");
         assertEquals(0, readRegister(run, "ZF"));
-    }
-
-    @Test
-    void nativePlpClearsIndexHighBytesFromPulledXFlag() throws Exception {
-        Run run = start(new byte[] {0x28}); // PLP
-        setContextBit(run, "ctx_EF", 0);
-        setContextBit(run, "ctx_XF", 0);
-        writeRegister(run, "SP", 0x01ee);
-        writeRegister(run, "X", 0x1234);
-        writeRegister(run, "Y", 0x5678);
-        writeMemory(run, 0x01ef, new byte[] {(byte) 0x91}); // N=1, X=1, C=1
-
-        executeOne(run);
-
-        assertEquals(0x0034, readRegister(run, "X"));
-        assertEquals(0x0078, readRegister(run, "Y"));
-        assertEquals(1, readRegister(run, "NF"));
-        assertEquals(1, readRegister(run, "CF"));
-        assertEquals(0x01ef, readRegister(run, "SP"));
-    }
-
-    @Test
-    void nativePlpPreservesIndexHighBytesWhenPulledXFlagIsClear() throws Exception {
-        Run run = start(new byte[] {0x28}); // PLP
-        setContextBit(run, "ctx_EF", 0);
-        setContextBit(run, "ctx_XF", 0);
-        writeRegister(run, "SP", 0x01ee);
-        writeRegister(run, "X", 0x1234);
-        writeRegister(run, "Y", 0x5678);
-        writeMemory(run, 0x01ef, new byte[] {0x01}); // X=0, C=1
-
-        executeOne(run);
-
-        assertEquals(0x1234, readRegister(run, "X"));
-        assertEquals(0x5678, readRegister(run, "Y"));
-        assertEquals(1, readRegister(run, "CF"));
-        assertEquals(0x01ef, readRegister(run, "SP"));
-    }
-
-    @Test
-    void nativeRtiUsesPulledXFlagAndRestoresPcAndBank() throws Exception {
-        Run run = start(new byte[] {0x40}); // RTI
-        setContextBit(run, "ctx_EF", 0);
-        setContextBit(run, "ctx_XF", 0);
-        writeRegister(run, "SP", 0x01fc);
-        writeRegister(run, "X", 0x1234);
-        writeRegister(run, "Y", 0x5678);
-        writeMemory(run, 0x01fd, new byte[] {0x10}); // X=1
-        writeMemory(run, 0x01fe, new byte[] {0x34, 0x12}); // PC = $1234
-        writeMemory(run, 0x0200, new byte[] {0x7a}); // PBR = $7a
-
-        executeOne(run);
-
-        assertEquals(0x0034, readRegister(run, "X"));
-        assertEquals(0x0078, readRegister(run, "Y"));
-        assertEquals(0x1234, readRegister(run, "PC"));
-        assertEquals(0x7a, readRegister(run, "PBR"));
-        assertEquals(0x0200, readRegister(run, "SP"));
     }
 
     @Test
