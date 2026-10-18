@@ -160,18 +160,18 @@ macro push_status_emulation(_break) {
     push8_emulation(status);
 }
 
-# UNSUPPORTED: pulling the context flags MF and XF.
-macro pull_status_native() {
-    local status:1;
-    pull8_native(status);
-    NF = status[7,1];
-    VF = status[6,1];
-    # MF = status[5,1];
-    # XF = status[4,1];
-    DF = status[3,1];
-    IF = status[2,1];
-    ZF = status[1,1];
-    CF = status[0,1];
+# The pulled byte is returned for runtime effects such as X/Y high-byte clearing.
+# The static decode context for subsequent instructions still cannot be inferred from the stack.
+macro pull_status_native(_status) {
+    pull8_native(_status);
+    NF = _status[7,1];
+    VF = _status[6,1];
+    # MF = _status[5,1];
+    # XF = _status[4,1];
+    DF = _status[3,1];
+    IF = _status[2,1];
+    ZF = _status[1,1];
+    CF = _status[0,1];
 }
 
 macro pull_status_emulation() {
