@@ -166,6 +166,26 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                 self.assertIn("pull_status_native();", blocks[0])
                 self.assertNotIn("pull_status_emulation();", blocks[0])
 
+    def test_interrupt_entry_stacks_state_before_changing_live_flags(self) -> None:
+        for mnemonic in ("BRK", "COP"):
+            for mode, context in (("native", "ctx_EF=0"), ("emulation", "ctx_EF=1")):
+                with self.subTest(mnemonic=mnemonic, mode=mode):
+                    bodies = [
+                        body for header, body in instruction_blocks(mnemonic)
+                        if context in header
+                    ]
+                    self.assertEqual(len(bodies), 1)
+                    body = bodies[0]
+                    status_push = (
+                        "push_status_native();"
+                        if mode == "native"
+                        else "push_status_emulation(1:1);"
+                    )
+                    self.assertLess(body.index("push"), body.index(status_push))
+                    self.assertLess(body.index(status_push), body.index("IF = 1;"))
+                    self.assertLess(body.index("IF = 1;"), body.index("DF = 0;"))
+                    self.assertLess(body.index("DF = 0;"), body.index("PBR = 0;"))
+
     def test_rti_restores_pc_with_mode_appropriate_bank_handling(self) -> None:
         emulation = [
             body for header, body in instruction_blocks("RTI")
