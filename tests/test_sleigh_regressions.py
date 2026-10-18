@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 LANGUAGES = ROOT / "data" / "languages"
 SINC = (LANGUAGES / "658xx.sinc").read_text(encoding="utf-8")
+MEMACCESS = (LANGUAGES / "658xx_memaccess.sinc").read_text(encoding="utf-8")
 
 
 def instruction_blocks(mnemonic: str) -> list[tuple[str, str]]:
@@ -99,6 +100,38 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
             body,
             r"local old_a:1 = A;\s*A = B;\s*B = old_a;\s*flag8_NZ\(A\);",
         )
+
+
+    def test_emulation_status_stack_image_forces_reserved_and_break_bits(self) -> None:
+        push_macro = re.search(
+            r"macro push_status_emulation\\(([^)]*)\\)\\s*\\{(.*?)\\n\\}",
+            MEMACCESS,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(push_macro)
+        push_body = push_macro.group(2)
+        self.assertIn("status[5,1] = 1;", push_body)
+        self.assertIn("status[4,1] = _break;", push_body)
+
+        pull_macro = re.search(
+            r"macro pull_status_emulation\\(\\)\\s*\\{(.*?)\\n\\}",
+            MEMACCESS,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(pull_macro)
+        self.assertNotRegex(pull_macro.group(1), r"\\bBF\\s*=")
+
+        for mnemonic in ("BRK", "COP", "PHP"):
+            with self.subTest(mnemonic=mnemonic):
+                emulation_bodies = [
+                    body for header, body in instruction_blocks(mnemonic)
+                    if "ctx_EF=1" in header
+                ]
+                self.assertTrue(emulation_bodies)
+                self.assertTrue(
+                    all("push_status_emulation(1:1);" in body for body in emulation_bodies),
+                    f"{mnemonic} must push an emulation-mode status image with B=1",
+                )
 
     def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
         for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
