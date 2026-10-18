@@ -133,6 +133,19 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                     f"{mnemonic} must push an emulation-mode status image with B=1",
                 )
 
+
+    def test_emulation_software_interrupts_clear_program_bank(self) -> None:
+        for mnemonic in ("BRK", "COP"):
+            with self.subTest(mnemonic=mnemonic):
+                emulation_bodies = [
+                    body for header, body in instruction_blocks(mnemonic)
+                    if "ctx_EF=1" in header
+                ]
+                self.assertEqual(len(emulation_bodies), 1)
+                body = emulation_bodies[0]
+                self.assertIn("PBR = 0;", body)
+                self.assertLess(body.index("PBR = 0;"), body.index("goto [target];"))
+
     def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
         for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
             with self.subTest(mnemonic=mnemonic):
