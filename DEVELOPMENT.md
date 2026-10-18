@@ -25,12 +25,12 @@ The script compiles a temporary copy of `data/languages` twice and checks that t
 | Python tests | Selected source patterns and XML metadata stay as expected | Full instruction correctness |
 | SLEIGH compile | The language compiles with the pinned Ghidra version | Runtime CPU behaviour |
 | Repeat compile | Identical inputs produce identical output | Correctness of the output |
-| P-code emulator tests | Selected instructions produce the expected register and flag results | Complete processor correctness |
+| P-code emulator tests | Selected instructions produce expected register, flag, stack, and vector results | Complete processor correctness |
 
 ## Runtime P-code tests
 
 CI also compiles the language into a temporary external Ghidra module and runs JUnit tests against
-Ghidra's `PcodeEmulator`. The current cases execute ten instruction sequences:
+Ghidra's `PcodeEmulator`. The current suite executes fifteen instruction sequences:
 
 | Instruction | Cases |
 | --- | --- |
@@ -38,6 +38,9 @@ Ghidra's `PcodeEmulator`. The current cases execute ten instruction sequences:
 | `CMP abs` | Unsigned carry for less-than and equality |
 | `CPY abs` | Correct comparison width in 8-bit and 16-bit index modes |
 | `XCE` | Native-to-native index preservation and native/emulation transitions |
+| `PHP` / `PLP` | Emulation-mode status image bits, live flag restore, and ignored B bit |
+| `RTI` | Emulation-mode status/PC restoration and stack pointer movement |
+| `BRK` / `COP` | Emulation-mode status push ordering, program-bank clearing, and vector transfer |
 
 Use Java 21 and Gradle 8.5 for the runtime tests. With the official Ghidra 12.1.4 distribution
 already extracted, run:
