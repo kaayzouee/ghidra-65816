@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 /path/to/ghidra-install" >&2
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Usage: $0 /path/to/ghidra-install [output-language-directory]" >&2
   exit 2
 fi
 
@@ -19,8 +19,16 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 work_root="$(mktemp -d)"
 trap 'rm -rf "$work_root"' EXIT
 
-language_dir="$work_root/languages"
-cp -a "$repo_root/data/languages" "$language_dir"
+if [[ $# -eq 2 ]]; then
+  language_dir="$(mkdir -p "$2" && cd "$2" && pwd)"
+  cp -a "$repo_root/data/languages/." "$language_dir/"
+  # Compile through the same relative path used by the original check, while
+  # keeping generated .sla files in the requested external-module directory.
+  ln -s "$language_dir" "$work_root/languages"
+else
+  language_dir="$work_root/languages"
+  cp -a "$repo_root/data/languages" "$language_dir"
+fi
 : > "$work_root/sleighArgs.txt"
 
 shopt -s nullglob
