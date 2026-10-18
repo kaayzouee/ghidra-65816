@@ -30,12 +30,13 @@ The script compiles a temporary copy of `data/languages` twice and checks that t
 ## Runtime P-code tests
 
 CI also compiles the language into a temporary external Ghidra module and runs JUnit tests against
-Ghidra's `PcodeEmulator`. The current suite executes twenty instruction sequences:
+Ghidra's `PcodeEmulator`. The current suite executes twenty-four instruction sequences:
 
 | Instruction | Cases |
 | --- | --- |
 | `XBA` | Byte exchange; negative and zero flags |
 | `CMP abs` | Unsigned carry for less-than and equality |
+| `ADC` / `SBC` | Decimal-mode BCD results, carry/borrow, zero, negative, and overflow flags |
 | `CPY abs` | Correct comparison width in 8-bit and 16-bit index modes |
 | `XCE` | Native-to-native index preservation and native/emulation transitions |
 | `PHP` / `PLP` | Emulation-mode status image bits, live flag restore, and ignored B bit |
