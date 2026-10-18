@@ -179,6 +179,26 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void rtiEmulationWrapsStackPullsWithinPageOne() throws Exception {
+        Run run = start(new byte[] {0x40}); // RTI
+        setContextBit(run, "ctx_EF", 1);
+        writeRegister(run, "SP", 0x01fe);
+        writeRegister(run, "BF", 0);
+        writeMemory(run, 0x01ff, new byte[] {(byte) 0xa1}); // N=1, reserved=1, C=1
+        writeMemory(run, 0x0100, new byte[] {0x34, 0x12}); // PC = $1234 after wrap
+        writeMemory(run, 0x0200, new byte[] {0x78}); // Wrong page must not be read
+
+        executeOne(run);
+
+        assertEquals(0x1234, readRegister(run, "PC"));
+        assertEquals(1, readRegister(run, "NF"));
+        assertEquals(0, readRegister(run, "VF"));
+        assertEquals(1, readRegister(run, "CF"));
+        assertEquals(0, readRegister(run, "BF"));
+        assertEquals(0x0101, readRegister(run, "SP"));
+    }
+
+    @Test
     void brkEmulationPushesOldStatusAndClearsProgramBank() throws Exception {
         Run run = startAt(0x421000, new byte[] {0x00, 0x5a}); // BRK + signature byte
         setContextBit(run, "ctx_EF", 1);
@@ -313,6 +333,33 @@ class PcodeEmulatorRegressionTest {
         assertEquals(0x0034, readRegister(run, "X"));
         assertEquals(0x0078, readRegister(run, "Y"));
         assertEquals(1, readRegister(run, "CF"));
+    }
+
+    @Test
+    void brkEmulationWrapsPageOneStackWhenPushingStatus() throws Exception {
+        Run run = startAt(0x421000, new byte[] {0x00, 0x5a}); // BRK + signature byte
+        setContextBit(run, "ctx_EF", 1);
+        writeRegister(run, "SP", 0x0101);
+        writeRegister(run, "NF", 1);
+        writeRegister(run, "VF", 0);
+        writeRegister(run, "DF", 1);
+        writeRegister(run, "IF", 0);
+        writeRegister(run, "ZF", 1);
+        writeRegister(run, "CF", 1);
+        writeRegister(run, "BF", 0);
+        writeMemory(run, 0xfffe, new byte[] {0x56, 0x34});
+        writeMemory(run, 0x0200, new byte[] {(byte) 0xcc});
+
+        executeOne(run);
+
+        assertEquals(0x3456, readRegister(run, "PC"));
+        assertEquals(0, readRegister(run, "PBR"));
+        assertEquals(0x01fe, readRegister(run, "SP"));
+        assertEquals(0x10, readMemory(run, 0x0101, 1));
+        assertEquals(0x02, readMemory(run, 0x0100, 1));
+        assertEquals(0xbb, readMemory(run, 0x01ff, 1));
+        assertEquals(0xcc, readMemory(run, 0x0200, 1),
+            "BRK must wrap its stack writes in emulation mode");
     }
 
     @Test
