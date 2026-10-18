@@ -288,7 +288,7 @@ macro read_stack(_out, _offset32) {
 macro ref_direct(_out, _offset32) {
     local _offset:4 = _offset32;
     local address:3;
-    if (($(EF) == 1) && (DPLow == 0)) goto <emu_read_direct>;
+    if (($(EF) == 1) && (DP == 0)) goto <emu_read_direct>;
 
     # <not_emu_read_direct>
     # Quote from manual p58:
