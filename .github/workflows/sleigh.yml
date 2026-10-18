@@ -60,5 +60,33 @@ jobs:
           ghidra_home="$(dirname "$(dirname "$application_properties")")"
           echo "home=$ghidra_home" >> "$GITHUB_OUTPUT"
 
-      - name: Compile the SLEIGH language twice and verify deterministic output
-        run: bash scripts/ci/compile-sleigh.sh "${{ steps.ghidra.outputs.home }}"
+      - name: Compile SLEIGH and prepare the external language module
+        env:
+          GHIDRA_HOME: ${{ steps.ghidra.outputs.home }}
+        run: |
+          set -euo pipefail
+          module_dir="$RUNNER_TEMP/ghidra-external-modules/ghidra-65816"
+          mkdir -p "$module_dir"
+          cp Module.manifest "$module_dir/Module.manifest"
+          bash scripts/ci/compile-sleigh.sh "$GHIDRA_HOME" "$module_dir/data/languages"
+          echo "GHIDRA_INSTALL_DIR=$GHIDRA_HOME" >> "$GITHUB_ENV"
+          echo "GHIDRA_EXTERNAL_MODULES=$module_dir" >> "$GITHUB_ENV"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.5"
+
+      - name: Run P-code emulator tests
+        run: gradle --no-daemon test --info --stacktrace
+
+      - name: Upload runtime-test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-test-diagnostics
+          if-no-files-found: ignore
+          path: |
+            build/test-results/test/**
+            build/reports/tests/test/**
+            hs_err_pid*.log

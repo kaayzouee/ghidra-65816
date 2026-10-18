@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+def ghidraInstallDir = System.getenv('GHIDRA_INSTALL_DIR')
+if (!ghidraInstallDir) {
+    throw new GradleException('GHIDRA_INSTALL_DIR must point to a Ghidra 12.1.4 installation')
+}
+
+apply from: new File(ghidraInstallDir, 'support/buildExtension.gradle')
+
+test {
+    useJUnitPlatform()
+
+    // Ghidra documents this factory override for Gradle test JVMs. Without it,
+    // HeadlessGhidraApplicationConfiguration can fail during startup on Java 21
+    // with "Cannot replace filter factory: BuiltinFilterFactory".
+    systemProperty 'jdk.serialFilterFactory', 'ghidra.framework.remote.GhidraSerialFilterFactory'
+
+    testLogging {
+        events 'started', 'passed', 'failed', 'skipped', 'standardOut', 'standardError'
+        showStandardStreams = true
+        exceptionFormat 'full'
+    }
+
+    def externalModules = System.getenv('GHIDRA_EXTERNAL_MODULES')
+    if (externalModules) {
+        systemProperty 'ghidra.external.modules', externalModules
+    }
+}

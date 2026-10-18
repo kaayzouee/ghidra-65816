@@ -1,36 +1,41 @@
-# Development checks
+# Development
 
-The repository's GitHub Actions workflow validates the language definitions with a pinned
-public Ghidra release and repeats a clean SLEIGH compilation to detect nondeterministic output.
+## Run checks
 
-## Run the checks locally
+| Check | What it covers |
+| --- | --- |
+| Python tests | Known source-level regressions and XML metadata |
+| SLEIGH compile | Syntax and constructor consistency with Ghidra 12.1.4 |
+| Repeat compile | Same inputs produce identical `.sla` files |
+| P-code tests | Selected instructions execute in Ghidra's emulator |
 
-Run the standard-library Python regression tests:
+## Runtime tests
 
-\`\`\`sh
-python3 -m unittest discover --start-directory tests --verbose
-\`\`\`
+CI builds a temporary external processor module and runs these tests with Ghidra's
+`PcodeEmulator`.
 
-Download and extract the same official Ghidra release used by CI (Ghidra 12.1.4), then pass
-the extracted installation directory to the compiler helper:
+| Instructions | Cases |
+| --- | --- |
+| `XBA` | Byte exchange; negative and zero flags |
+| `CMP abs` | Carry on unsigned less-than and equality |
+| `CPY abs` | 8-bit and 16-bit index-width behavior |
+| `XCE` | Native-to-native preservation; native/emulation transitions |
 
-\`\`\`sh
-bash scripts/ci/compile-sleigh.sh /path/to/ghidra_12.1.4_PUBLIC
-\`\`\`
+## Run locally
 
-The helper compiles a temporary copy of \`data/languages\` using Ghidra's own
-\`ghidra.pcodeCPort.slgh_compile.SleighCompile\` class. It compiles twice from clean generated
-outputs, checks that \`65816.sla\` was produced, and compares output hashes. It does not put
-generated \`.sla\` files into the working tree.
+Use Java 21, Gradle 8.5, and an extracted Ghidra 12.1.4 distribution.
 
-## Keeping the CI compiler version current
+```sh
+export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
+export GHIDRA_EXTERNAL_MODULES="$PWD/build/harness-modules/ghidra-65816"
+mkdir -p "$GHIDRA_EXTERNAL_MODULES"
+cp Module.manifest "$GHIDRA_EXTERNAL_MODULES/Module.manifest"
+bash scripts/ci/compile-sleigh.sh "$GHIDRA_INSTALL_DIR" "$GHIDRA_EXTERNAL_MODULES/data/languages"
+gradle test
+```
 
-The workflow pins the official archive URL and SHA-256 digest rather than following a floating
-download. When upgrading the Ghidra release, update \`GHIDRA_VERSION\`, \`GHIDRA_RELEASE_DATE\`,
-and \`GHIDRA_SHA256\` together using metadata from the official
-[Ghidra releases](https://github.com/NationalSecurityAgency/ghidra/releases). Check the
-release's required Java version before changing the workflow's JDK.
+The compiler helper also accepts only `GHIDRA_INSTALL_DIR`; in that form it compiles in a
+temporary directory and checks reproducible output without setting up runtime tests.
 
-The Python tests are source-level regression tests for known semantic mistakes and XML metadata;
-they do not replace execution tests in Ghidra's emulator. A clean SLEIGH compile verifies syntax
-and constructor consistency, not full CPU correctness.
+A passing SLEIGH compile proves the language compiles, not that the whole CPU is emulated
+correctly. Add small instruction tests and compare disputed behavior with trusted reference vectors.
