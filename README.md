@@ -1,40 +1,61 @@
-**This repo is no longer maintained,** and I'm unlikely to come back to it in the future.
+# Ghidra 65816
 
--------
+A processor module for the WDC 65816 CPU in Ghidra.
 
-# ghidra-65816
+This is an experimental community continuation of the original
+[ghidra-65816 project](https://github.com/achan1989/ghidra-65816). It is useful for
+disassembly and early analysis, but it is **not a cycle-accurate CPU emulator**. Verify important
+results against known-good 65816 documentation or test programs.
 
-This is a WDC 65816 processor module for Ghidra.
+## Install
 
-This is an early release. I've not used it much yet, so expect bugs. Feedback and pull requests are welcome!
+1. Copy this repository into your Ghidra `Processors` directory.
+2. Name the folder `65816`.
+3. Restart Ghidra.
+4. Import your ROM or binary and choose **65816** as the language.
+5. Set up the memory map before disassembling.
 
-Disassembly is probably correct. Data flow analysis is probably *mostly* correct. Decompilation is probably unusable.
+## Set the initial CPU state
 
-## Install and Usage
-Rename the root folder to `65816` and copy it to `Ghidra/Processors`.
+For each code entry point, set the processor context and registers to match the program.
 
-I've only tried to use this processor module with a raw binary so far.
+| Setting | Meaning |
+| --- | --- |
+| `MF` | Accumulator width: 1 = 8-bit, 0 = 16-bit |
+| `XF` | Index-register width: 1 = 8-bit, 0 = 16-bit |
+| `EF` | Emulation mode |
+| `PBR` | Program bank |
+| `DBR` | Data bank |
+| `DP` | Direct-page base |
+| `SP` | Stack pointer |
+| `DF` | Decimal mode flag |
 
- 1. Import a file using the "Raw Binary" format, "65816" language.
- 2. Open it in the code browser. When asked if you want to analyse it now choose "no".
- 3. Set up your memory map.
- 4. For each entry point:
-    1. Identify the mode that the processor will be running in.
-    2. Right-click the first instruction byte and choose "Processor Options..." to set the `MF`, `XF`, and `EF` flags.
-    3. Right-click the first instruction byte and choose "Set Register Values..." to set the `DBR` (data bank), `DF` (decimal flag), `DP` (direct page), `PBR` (program bank), and `SP` (stack pointer) registers. Perhaps others, if you're feeling keen.
-    4. Cross fingers and disassemble. Watch out for limitations and unknowns.
+In the CodeBrowser, right-click the first instruction and use **Processor Options...** for
+`MF`, `XF`, and `EF`. Use **Set Register Values...** for registers such as `PBR`, `DBR`,
+`DP`, and `SP`.
 
-## Limitations
- - The 65802 variant is not supported.
- - Disassembly and data flow analysis will be incorrect when an instruction and its operand(s) wrap at the end of a program bank.
- - When pulling the `MF` and `XF` flags from the stack Ghidra will not automatically set the correct processor mode. This affects the `PLP` and `RTI` instructions.
- - Interrupt vectors are not automatically recognised as entry points.
+## Current status
 
-## Unknowns
-I don't know how well Ghidra will pick up on changes to the processor modes. If it requires a lot of manual intervention then a custom analyser might be necessary to make it usable.
+| Area | Status |
+| --- | --- |
+| Instruction decoding | Broad coverage; verify unusual bank-boundary cases |
+| P-code semantics | Improving; not fully validated against a CPU emulator |
+| Automatic mode tracking | Limited; changes to `MF`, `XF`, and `EF` may need manual context |
+| Interrupt entry points | Vector symbols exist, but entry points may need to be added manually |
+| 65802 variant | Not supported |
 
-The following implemented behaviours are my interpretation of ambiguous documentation, which is likely to be wrong.
-- When executing a `BRK` the processor model pushes the status register to the stack with the `BF` flag set, but leaves the flag unchanged when jumping to the handler.
-- When executing a `XCE` where the emulation mode is re-switched to the current mode, the model behaves as if the new mode was entered "properly". That is:
-  - `emulation -> emulation` is treated like `native -> emulation`, i.e. index registers are truncated and the stack is forced to page one.
-  - `native -> native` is treated like `emulation -> native`, i.e. index registers are truncated.
+## Known limitations
+
+- Instructions and operands that cross the end of a program bank may be analysed incorrectly.
+- Immediate operands are modelled through references to instruction bytes, which can limit constant propagation in analysis.
+- `PLP` and `RTI` restore status bits at runtime, but Ghidra cannot automatically use the restored
+  `MF` and `XF` bits to select the correct decode context.
+- `XCE` changes emulation/native mode at runtime. Static disassembly context cannot always follow
+  a mode change that depends on the carry flag.
+- Interrupt vectors are not automatically created as code entry points.
+- Passing the test suite and compiling SLEIGH do not prove that every instruction behaves exactly
+  like real hardware.
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the small local test suite and SLEIGH compiler check.
