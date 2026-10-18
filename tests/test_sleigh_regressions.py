@@ -104,7 +104,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
 
     def test_emulation_status_stack_image_forces_reserved_and_break_bits(self) -> None:
         push_macro = re.search(
-            r"macro push_status_emulation\\(([^)]*)\\)\\s*\\{(.*?)\\n\\}",
+            r"macro push_status_emulation\(([^)]*)\)\s*\{(.*?)\n\}",
             MEMACCESS,
             re.DOTALL,
         )
@@ -114,12 +114,12 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertIn("status[4,1] = _break;", push_body)
 
         pull_macro = re.search(
-            r"macro pull_status_emulation\\(\\)\\s*\\{(.*?)\\n\\}",
+            r"macro pull_status_emulation\(\)\s*\{(.*?)\n\}",
             MEMACCESS,
             re.DOTALL,
         )
         self.assertIsNotNone(pull_macro)
-        self.assertNotRegex(pull_macro.group(1), r"\\bBF\\s*=")
+        self.assertNotRegex(pull_macro.group(1), r"\bBF\s*=")
 
         for mnemonic in ("BRK", "COP", "PHP"):
             with self.subTest(mnemonic=mnemonic):
