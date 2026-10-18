@@ -100,6 +100,20 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
             r"local old_a:1 = A;\s*A = B;\s*B = old_a;\s*flag8_NZ\(A\);",
         )
 
+    def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
+        for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
+            with self.subTest(mnemonic=mnemonic):
+                matches = [
+                    body
+                    for header, body in instruction_blocks(mnemonic)
+                    if "ctx_XF=1" in header and "ctx_MF=0" in header
+                ]
+                self.assertEqual(len(matches), 1)
+                self.assertIn(f"C = zext({source});", matches[0])
+                self.assertIn("flag16_NZ(C);", matches[0])
+                self.assertNotIn(f"flag8_NZ({source});", matches[0])
+
+
     def test_stp_does_not_synthesize_an_immediate_reset(self) -> None:
         blocks = instruction_blocks("STP")
         self.assertEqual(len(blocks), 1)
@@ -141,20 +155,6 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertIn("XHigh = 0;", to_native)
         self.assertIn("YHigh = 0;", to_native)
         self.assertIn("CF = 1;", emulation_body)
-
-    def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
-        for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
-            with self.subTest(mnemonic=mnemonic):
-                matches = [
-                    body
-                    for header, body in instruction_blocks(mnemonic)
-                    if "ctx_XF=1" in header and "ctx_MF=0" in header
-                ]
-                self.assertEqual(len(matches), 1)
-                self.assertIn(f"C = zext({source});", matches[0])
-                self.assertIn("flag16_NZ(C);", matches[0])
-                self.assertNotIn(f"flag8_NZ({source});", matches[0])
-
 
 if __name__ == "__main__":
     unittest.main()
