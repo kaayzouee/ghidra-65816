@@ -100,6 +100,27 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
             r"local old_a:1 = A;\s*A = B;\s*B = old_a;\s*flag8_NZ\(A\);",
         )
 
+    def test_stp_does_not_synthesize_an_immediate_reset(self) -> None:
+        blocks = instruction_blocks("STP")
+        self.assertEqual(len(blocks), 1)
+        _, body = blocks[0]
+        self.assertIn("stop();", body)
+        self.assertNotIn("0x00FFFC", body)
+        self.assertNotRegex(body, r"\\bgoto\\s+\\[")
+
+    def test_native_xce_preserves_width_context_and_index_high_bytes(self) -> None:
+        blocks = instruction_blocks("XCE")
+        native = [ (header, body) for header, body in blocks if "ctx_EF=0" in header ]
+        self.assertEqual(len(native), 1)
+        header, body = native[0]
+
+        self.assertIn("ctx_MF=ctx_MF | CF", header)
+        self.assertIn("ctx_XF=ctx_XF | CF", header)
+
+        native_to_native = body.split("<to_native>", 1)[1].split("<end>", 1)[0]
+        self.assertNotRegex(native_to_native, r"\\bXHigh\\s*=\\s*0")
+        self.assertNotRegex(native_to_native, r"\\bYHigh\\s*=\\s*0")
+
     def test_wide_accumulator_transfers_set_sixteen_bit_flags(self) -> None:
         for mnemonic, source in (("TXA", "XLow"), ("TYA", "YLow")):
             with self.subTest(mnemonic=mnemonic):
