@@ -424,6 +424,82 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void adcEightBitDecimalOverflowSetsCarryZeroAndOverflow() throws Exception {
+        Run run = start(new byte[] {(byte) 0x6d, 0x00, 0x20}); // ADC $2000
+        setContextBit(run, "ctx_EF", 0);
+        setContextBit(run, "ctx_MF", 1);
+        writeRegister(run, "A", 0x50);
+        writeRegister(run, "CF", 0);
+        writeRegister(run, "DF", 1);
+        writeMemory(run, DATA_ADDRESS, new byte[] {0x50});
+
+        executeOne(run);
+
+        assertEquals(0x00, readRegister(run, "A"));
+        assertEquals(1, readRegister(run, "CF"));
+        assertEquals(1, readRegister(run, "ZF"));
+        assertEquals(1, readRegister(run, "VF"));
+        assertEquals(0, readRegister(run, "NF"));
+    }
+
+    @Test
+    void sbcEightBitDecimalBorrowProducesNinetyNine() throws Exception {
+        Run run = start(new byte[] {(byte) 0xed, 0x00, 0x20}); // SBC $2000
+        setContextBit(run, "ctx_EF", 0);
+        setContextBit(run, "ctx_MF", 1);
+        writeRegister(run, "A", 0x00);
+        writeRegister(run, "CF", 1);
+        writeRegister(run, "DF", 1);
+        writeMemory(run, DATA_ADDRESS, new byte[] {0x01});
+
+        executeOne(run);
+
+        assertEquals(0x99, readRegister(run, "A"));
+        assertEquals(0, readRegister(run, "CF"));
+        assertEquals(0, readRegister(run, "ZF"));
+        assertEquals(0, readRegister(run, "VF"));
+        assertEquals(1, readRegister(run, "NF"));
+    }
+
+    @Test
+    void adcSixteenBitDecimalOverflowSetsCarryZeroAndOverflow() throws Exception {
+        Run run = start(new byte[] {(byte) 0x6d, 0x00, 0x20}); // ADC $2000
+        setContextBit(run, "ctx_EF", 0);
+        setContextBit(run, "ctx_MF", 0);
+        writeRegister(run, "C", 0x5000);
+        writeRegister(run, "CF", 0);
+        writeRegister(run, "DF", 1);
+        writeMemory(run, DATA_ADDRESS, new byte[] {0x00, 0x50});
+
+        executeOne(run);
+
+        assertEquals(0x0000, readRegister(run, "C"));
+        assertEquals(1, readRegister(run, "CF"));
+        assertEquals(1, readRegister(run, "ZF"));
+        assertEquals(1, readRegister(run, "VF"));
+        assertEquals(0, readRegister(run, "NF"));
+    }
+
+    @Test
+    void sbcSixteenBitDecimalBorrowProducesNineThousandNineHundredNinetyNine() throws Exception {
+        Run run = start(new byte[] {(byte) 0xed, 0x00, 0x20}); // SBC $2000
+        setContextBit(run, "ctx_EF", 0);
+        setContextBit(run, "ctx_MF", 0);
+        writeRegister(run, "C", 0x0000);
+        writeRegister(run, "CF", 1);
+        writeRegister(run, "DF", 1);
+        writeMemory(run, DATA_ADDRESS, new byte[] {0x01, 0x00});
+
+        executeOne(run);
+
+        assertEquals(0x9999, readRegister(run, "C"));
+        assertEquals(0, readRegister(run, "CF"));
+        assertEquals(0, readRegister(run, "ZF"));
+        assertEquals(0, readRegister(run, "VF"));
+        assertEquals(1, readRegister(run, "NF"));
+    }
+
+    @Test
     void xbaExchangesAccumulatorBytes() throws Exception {
         Run run = start(new byte[] {(byte) 0xeb}); // XBA
         writeRegister(run, "A", 0x12);
