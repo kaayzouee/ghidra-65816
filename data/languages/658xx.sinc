@@ -409,7 +409,6 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
 }
 
 # BRK emulation.
-# UNKNOWN: is BF set when jumping to the handler, or is BF only set on the stack?
 :BRK $unused8    is (ctx_EF=1 & op=0x00); unused8
 {
     local this_pc_full:3 = inst_start;
@@ -417,7 +416,7 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
     local pc_inc:2 = this_pc + 2;
 
     push16_emulation(pc_inc);
-    local save_bf:1 = BF;  BF = 1;  push_status_emulation();  BF = save_bf;
+    push_status_emulation(1:1);
     IF = 1;
     DF = 0;
 
@@ -514,7 +513,7 @@ BIT_OP: RefImmMF    is op=0x89; RefImmMF  { export RefImmMF; }
     local pc_inc:2 = this_pc + 2;
 
     push16_emulation(pc_inc);
-    push_status_emulation();
+    push_status_emulation(1:1);
     IF = 1;
     DF = 0;
 
@@ -1153,7 +1152,7 @@ macro do_lsr16(_out, _data) {
 # PHP emulation.
 :PHP    is (ctx_EF=1 & op=0x08)
 {
-    push_status_emulation();
+    push_status_emulation(1:1);
 }
 
 # PHX 8 bit, native.
@@ -1498,7 +1497,7 @@ macro do_ror16(_out, _data) {
 {
     # "Each flag takes the value of its corresponding bit in the stacked status byte, except that
     # the Break flag is ignored."
-    local save_bf:1 = BF;  pull_status_emulation();  BF = save_bf;
+    pull_status_emulation();
 
     local pc:2;
     pull16_emulation(pc);
