@@ -117,7 +117,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertIn("ctx_MF=ctx_MF | CF", header)
         self.assertIn("ctx_XF=ctx_XF | CF", header)
 
-        native_to_native = body.split("<to_native>", 1)[1].split("<end>", 1)[0]
+        native_to_native = body.split("\n    <to_native>", 1)[1].split("\n    <end>", 1)[0]
         self.assertNotRegex(native_to_native, r"\bXHigh\s*=\s*0")
         self.assertNotRegex(native_to_native, r"\bYHigh\s*=\s*0")
 
