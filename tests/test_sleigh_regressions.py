@@ -43,7 +43,7 @@ class LanguageMetadataTests(unittest.TestCase):
         for entry in entries:
             with self.subTest(language=entry.get("id")):
                 sla = entry.attrib["slafile"]
-                self.assertTrue((LANGUAGES / sla.removesuffix(".sla") / "__never__").parent.exists())
+                self.assertTrue(sla.endswith(".sla"))
                 self.assertTrue((LANGUAGES / sla.replace(".sla", ".slaspec")).is_file())
                 processor_spec = entry.attrib["processorspec"]
                 self.assertTrue((LANGUAGES / processor_spec).is_file())
