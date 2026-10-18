@@ -167,16 +167,11 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                 self.assertNotIn("pull_status_emulation();", blocks[0])
 
     def test_native_status_pull_uses_stacked_x_bit_for_index_cleanup(self) -> None:
-        pull_macro = re.search(
-            r"macro pull_status_native\\(([^)]*)\\)\\s*\\{(.*?)\\n\\}",
-            MEMACCESS,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(pull_macro)
-        self.assertEqual(pull_macro.group(1).strip(), "_status")
-        self.assertIn("pull8_native(_status);", pull_macro.group(2))
-        self.assertIn("NF = _status[7,1];", pull_macro.group(2))
-        self.assertIn("CF = _status[0,1];", pull_macro.group(2))
+        self.assertIn("macro pull_status_native(_status) {", MEMACCESS)
+        pull_body = MEMACCESS.split("macro pull_status_native(_status) {", 1)[1].split("\\n}", 1)[0]
+        self.assertIn("pull8_native(_status);", pull_body)
+        self.assertIn("NF = _status[7,1];", pull_body)
+        self.assertIn("CF = _status[0,1];", pull_body)
 
         self.assertNotIn("unknown_native_status_pull", SINC)
         for mnemonic in ("PLP", "RTI"):
