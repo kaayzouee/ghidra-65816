@@ -1,29 +1,46 @@
 # Development
 
-## Run checks
+## Run tests
 
-| Check | What it covers |
-| --- | --- |
-| Python tests | Known source-level regressions and XML metadata |
-| SLEIGH compile | Syntax and constructor consistency with Ghidra 12.1.4 |
-| Repeat compile | Same inputs produce identical `.sla` files |
-| P-code tests | Selected instructions execute in Ghidra's emulator |
+Run the source-level regression tests:
 
-## Runtime tests
+```sh
+python3 -m unittest discover --start-directory tests --verbose
+```
 
-CI builds a temporary external processor module and runs these tests with Ghidra's
-`PcodeEmulator`.
+Compile the processor definition with the same Ghidra release used by CI (currently Ghidra
+12.1.4):
 
-| Instructions | Cases |
+```sh
+bash scripts/ci/compile-sleigh.sh /path/to/ghidra_12.1.4_PUBLIC
+```
+
+The script compiles a temporary copy of `data/languages` twice and checks that the generated
+`65816.sla` files match. It does not add generated files to the repository.
+
+## What the checks mean
+
+| Check | Confirms | Does not confirm |
+| --- | --- | --- |
+| Python tests | Selected source patterns and XML metadata stay as expected | Full instruction correctness |
+| SLEIGH compile | The language compiles with the pinned Ghidra version | Runtime CPU behaviour |
+| Repeat compile | Identical inputs produce identical output | Correctness of the output |
+| P-code emulator tests | Selected instructions produce the expected register and flag results | Complete processor correctness |
+
+## Runtime P-code tests
+
+CI also compiles the language into a temporary external Ghidra module and runs JUnit tests against
+Ghidra's `PcodeEmulator`. The current cases execute ten instruction sequences:
+
+| Instruction | Cases |
 | --- | --- |
 | `XBA` | Byte exchange; negative and zero flags |
-| `CMP abs` | Carry on unsigned less-than and equality |
-| `CPY abs` | 8-bit and 16-bit index-width behavior |
-| `XCE` | Native-to-native preservation; native/emulation transitions |
+| `CMP abs` | Unsigned carry for less-than and equality |
+| `CPY abs` | Correct comparison width in 8-bit and 16-bit index modes |
+| `XCE` | Native-to-native index preservation and native/emulation transitions |
 
-## Run locally
-
-Use Java 21, Gradle 8.5, and an extracted Ghidra 12.1.4 distribution.
+Use Java 21 and Gradle 8.5 for the runtime tests. With the official Ghidra 12.1.4 distribution
+already extracted, run:
 
 ```sh
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
@@ -34,8 +51,25 @@ bash scripts/ci/compile-sleigh.sh "$GHIDRA_INSTALL_DIR" "$GHIDRA_EXTERNAL_MODULE
 gradle test
 ```
 
-The compiler helper also accepts only `GHIDRA_INSTALL_DIR`; in that form it compiles in a
-temporary directory and checks reproducible output without setting up runtime tests.
+The compiler helper also accepts only the Ghidra installation path; in that mode, it compiles a
+temporary copy and verifies reproducibility without setting up the runtime test module.
 
-A passing SLEIGH compile proves the language compiles, not that the whole CPU is emulated
-correctly. Add small instruction tests and compare disputed behavior with trusted reference vectors.
+## Update the Ghidra version
+
+The CI workflow pins the official Ghidra download and its SHA-256 hash. To update it, change
+`GHIDRA_VERSION`, `GHIDRA_RELEASE_DATE`, and `GHIDRA_SHA256` together in
+`.github/workflows/sleigh.yml`. Use the official
+[Ghidra releases](https://github.com/NationalSecurityAgency/ghidra/releases) page and check
+which Java version the release requires.
+
+## Before changing CPU semantics
+
+1. Check the 65816 reference documentation.
+2. Add a focused regression test.
+3. Compile the language and run the tests.
+4. For behaviour that depends on runtime state, validate against trusted test vectors or an
+   independent emulator before claiming it is correct.
+
+Keep changes small. A passing build is necessary, but it is not proof of correct emulation. Also,
+immediate operands are modelled through references to instruction bytes, which can limit constant
+propagation in analysis.
