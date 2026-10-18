@@ -105,6 +105,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertEqual(len(blocks), 1)
         _, body = blocks[0]
         self.assertIn("stop();", body)
+        self.assertIn("goto inst_start;", body)
         self.assertNotIn("0x00FFFC", body)
         self.assertNotRegex(body, r"\bgoto\s+\[")
 
