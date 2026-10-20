@@ -190,8 +190,6 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
-
-
         assertEquals(0x1234, readRegister(run, "PC"));
         assertEquals(1, readRegister(run, "NF"));
         assertEquals(0, readRegister(run, "VF"));
@@ -580,14 +578,6 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
-        System.out.printf(
-            "DIAG JSR counter=%s full=%06x pc=%04x pbr=%02x sp=%04x stack=%02x,%02x target=%02x source=%02x,%02x,%02x%n",
-            run.thread().getCounter(), readRegister(run, "PC_FULL"), readRegister(run, "PC"),
-            readRegister(run, "PBR"), readRegister(run, "SP"),
-            readMemory(run, 0x01ff, 1), readMemory(run, 0x01fe, 1),
-            readMemory(run, 0x121234, 1), readMemory(run, 0x12fffd, 1),
-            readMemory(run, 0x12fffe, 1), readMemory(run, 0x12ffff, 1));
-
         assertEquals(run.space().getAddress(0x121234), run.thread().getCounter(),
             "JSR must transfer to the RAM address selected by its absolute operand");
         assertEquals(0x1234, readRegister(run, "PC"));
@@ -616,17 +606,6 @@ class PcodeEmulatorRegressionTest {
         writeMemory(run, 0x345678, new byte[] {0x6b}); // RTL
 
         executeOne(run);
-
-        System.out.printf(
-            "DIAG JSL counter=%s full=%06x pc=%04x pbr=%02x sp=%04x stack=%02x,%02x,%02x target=%02x source=%02x,%02x,%02x,%02x%n",
-            run.thread().getCounter(), readRegister(run, "PC_FULL"), readRegister(run, "PC"),
-            readRegister(run, "PBR"), readRegister(run, "SP"),
-            readMemory(run, 0x01ff, 1), readMemory(run, 0x01fe, 1), readMemory(run, 0x01fd, 1),
-            readMemory(run, 0x345678, 1), readMemory(run, 0x12fffc, 1),
-            readMemory(run, 0x12fffd, 1), readMemory(run, 0x12fffe, 1),
-            readMemory(run, 0x12ffff, 1));
-
-
 
         assertEquals(run.space().getAddress(0x345678), run.thread().getCounter(),
             "JSL must transfer to the full 24-bit RAM target");
