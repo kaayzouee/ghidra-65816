@@ -611,6 +611,9 @@ class PcodeEmulatorRegressionTest {
         writeMemory(run, 0x121234, new byte[] {(byte) 0xa9, 0x5a}); // LDA #$5a
         writeMemory(run, 0x001234, new byte[] {(byte) 0xa9, (byte) 0xa5}); // Wrong-bank sentinel
 
+        assertEquals(0x34, readMemory(run, 0x00ffff, 1), "Pointer low byte initialized");
+        assertEquals(0x12, readMemory(run, 0x000000, 1), "Wrapped pointer high byte initialized");
+
         executeOne(run);
         executeOne(run);
 
