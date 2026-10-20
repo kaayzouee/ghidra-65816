@@ -30,7 +30,7 @@ The script compiles a temporary copy of `data/languages` twice and checks that t
 ## Runtime P-code tests
 
 CI also compiles the language into a temporary external Ghidra module and runs JUnit tests against
-Ghidra's `PcodeEmulator`. The current suite executes twenty-four instruction sequences:
+Ghidra's `PcodeEmulator`. The current runtime suite contains focused regression cases for:
 
 | Instruction | Cases |
 | --- | --- |
@@ -42,9 +42,9 @@ Ghidra's `PcodeEmulator`. The current suite executes twenty-four instruction seq
 | `PHP` / `PLP` | Emulation-mode status image bits, live flag restore, and ignored B bit |
 | `RTI` | Emulation-mode status/PC restoration and stack pointer movement |
 | `BRK` / `COP` | Emulation-mode status push ordering, program-bank clearing, and vector transfer |
-| `MVN` / `MVP` | Block-copy direction, count, bank selection, and index-width behavior |
 | `JMP` / `JML` | Absolute and absolute-long control transfers use their computed target addresses |
 | `JSR` / `RTS` / `JSL` / `RTL` | Near/far calls at the end of a program bank; stacked return bytes, PC wrap, and PBR restoration |
+| `MVN` / `MVP` | Block-copy direction, count, bank selection, and index-width behavior |
 
 Use Java 21 and Gradle 8.5 for the runtime tests. With the official Ghidra 12.1.4 distribution
 already extracted, run:
@@ -80,3 +80,8 @@ which Java version the release requires.
 Keep changes small. A passing build is necessary, but it is not proof of correct emulation. Also,
 immediate operands are modelled through references to instruction bytes, which can limit constant
 propagation in analysis.
+
+
+## SingleStepTests adapter
+
+The runtime suite contains the compact `3d e 1` state/memory fixture published in the [SingleStepTests/65816 README](https://github.com/SingleStepTests/65816#sample-test). `PcodeEmulatorRegressionTest` loads the fixture's initial RAM and CPU state, executes one instruction, then compares architecturally relevant final registers, flags, and listed memory bytes. This is a smoke test of the adapter, not full corpus coverage or bus-cycle validation. The fixture attribution and upstream MIT licence are included in `src/test/resources/singlestep/README.md` and `src/test/resources/singlestep/LICENCE`. Keep PR CI bounded; broader upstream corpus runs should be an opt-in or scheduled job.

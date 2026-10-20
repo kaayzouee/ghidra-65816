@@ -4,12 +4,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.math.BigInteger;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import java.util.concurrent.TimeUnit;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import ghidra.GhidraApplicationLayout;
 import ghidra.framework.Application;
@@ -61,6 +69,17 @@ class PcodeEmulatorRegressionTest {
         PcodeEmulator emulator = new PcodeEmulator(language);
         AddressSpace space = language.getDefaultSpace();
         emulator.getSharedState().setVar(space, codeAddress, code.length, false, code);
+        return startAt(emulator, space, codeAddress);
+    }
+
+    private static Run startAt(long codeAddress) {
+        PcodeEmulator emulator = new PcodeEmulator(language);
+        AddressSpace space = language.getDefaultSpace();
+        return startAt(emulator, space, codeAddress);
+    }
+
+    private static Run startAt(
+            PcodeEmulator emulator, AddressSpace space, long codeAddress) {
         PcodeThread<byte[]> thread = emulator.newThread();
         thread.overrideCounter(space.getAddress(codeAddress));
         thread.overrideContextWithDefault();
@@ -655,6 +674,73 @@ class PcodeEmulatorRegressionTest {
         assertEquals(0x12, readRegister(run, "PBR"),
             "RTL restores the caller's bank from the stack");
         assertEquals(0x01ff, readRegister(run, "SP"));
+    }
+
+    @Test
+    void singleStepTestsReadmeVectorMatchesProcessorStateAndMemory() throws Exception {
+        JsonObject fixture;
+        Path fixturePath = Path.of("src/test/resources/singlestep/3d.e.json");
+        try (Reader reader = Files.newBufferedReader(fixturePath)) {
+            fixture = JsonParser.parseReader(reader).getAsJsonObject();
+        }
+
+        JsonObject initial = fixture.getAsJsonObject("initial");
+        JsonObject expected = fixture.getAsJsonObject("final");
+        long codeAddress = (initial.get("pbr").getAsLong() << 16)
+            | initial.get("pc").getAsLong();
+        Run run = startAt(codeAddress);
+
+        for (JsonElement entry : initial.getAsJsonArray("ram")) {
+            JsonArray pair = entry.getAsJsonArray();
+            writeMemory(run, pair.get(0).getAsLong(),
+                new byte[] {(byte) pair.get(1).getAsInt()});
+        }
+
+        long status = initial.get("p").getAsLong();
+        long emulation = initial.get("e").getAsLong();
+        writeRegister(run, "PC", initial.get("pc").getAsLong());
+        writeRegister(run, "PBR", initial.get("pbr").getAsLong());
+        writeRegister(run, "C", initial.get("a").getAsLong());
+        writeRegister(run, "X", initial.get("x").getAsLong());
+        writeRegister(run, "Y", initial.get("y").getAsLong());
+        writeRegister(run, "DBR", initial.get("dbr").getAsLong());
+        writeRegister(run, "DP", initial.get("d").getAsLong());
+        writeRegister(run, "SP", initial.get("s").getAsLong());
+        writeRegister(run, "NF", (status >> 7) & 1);
+        writeRegister(run, "VF", (status >> 6) & 1);
+        writeRegister(run, "DF", (status >> 3) & 1);
+        writeRegister(run, "IF", (status >> 2) & 1);
+        writeRegister(run, "ZF", (status >> 1) & 1);
+        writeRegister(run, "CF", status & 1);
+        setContextBit(run, "ctx_EF", emulation);
+        setContextBit(run, "ctx_MF", emulation == 1 ? 1 : (status >> 5) & 1);
+        setContextBit(run, "ctx_XF", emulation == 1 ? 1 : (status >> 4) & 1);
+        run.thread().overrideCounter(run.space().getAddress(codeAddress));
+
+        executeOne(run);
+
+        assertEquals(expected.get("pc").getAsLong(), readRegister(run, "PC"), "PC");
+        assertEquals(expected.get("pbr").getAsLong(), readRegister(run, "PBR"), "PBR");
+        assertEquals(expected.get("a").getAsLong(), readRegister(run, "C"), "Accumulator");
+        assertEquals(expected.get("x").getAsLong(), readRegister(run, "X"), "X");
+        assertEquals(expected.get("y").getAsLong(), readRegister(run, "Y"), "Y");
+        assertEquals(expected.get("dbr").getAsLong(), readRegister(run, "DBR"), "DBR");
+        assertEquals(expected.get("d").getAsLong(), readRegister(run, "DP"), "Direct page");
+        assertEquals(expected.get("s").getAsLong(), readRegister(run, "SP"), "Stack pointer");
+        long expectedStatus = expected.get("p").getAsLong();
+        assertEquals((expectedStatus >> 7) & 1, readRegister(run, "NF"), "N");
+        assertEquals((expectedStatus >> 6) & 1, readRegister(run, "VF"), "V");
+        assertEquals((expectedStatus >> 3) & 1, readRegister(run, "DF"), "D");
+        assertEquals((expectedStatus >> 2) & 1, readRegister(run, "IF"), "I");
+        assertEquals((expectedStatus >> 1) & 1, readRegister(run, "ZF"), "Z");
+        assertEquals(expectedStatus & 1, readRegister(run, "CF"), "C");
+
+        for (JsonElement entry : expected.getAsJsonArray("ram")) {
+            JsonArray pair = entry.getAsJsonArray();
+            assertEquals(pair.get(1).getAsLong(),
+                readMemory(run, pair.get(0).getAsLong(), 1),
+                "RAM at 0x" + Long.toHexString(pair.get(0).getAsLong()));
+        }
     }
 
 }
