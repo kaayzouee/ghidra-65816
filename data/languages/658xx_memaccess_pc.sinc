@@ -2,7 +2,7 @@
 MemAbsJmp: !$imm16    is imm16  {
     local offset:2 = imm16;
     local address:3 = (zext(PBR) << 16) | zext(offset);
-    export *:3 address;
+    export address;
 }
 
 # Absolute indexed by X, indirect.
@@ -16,7 +16,7 @@ MemAbsIdxIndJmp: (!$imm16,"X")    is imm16 & IdxX  {
     local addr_lo:1 = *:1 ind_lo_addr;
     local addr_hi:1 = *:1 ind_hi_addr;
     local address:3 = (zext(PBR) << 16) | (zext(addr_hi) << 8) | zext(addr_lo);
-    export *:3 address;
+    export address;
 }
 
 # Absolute indirect.
@@ -29,7 +29,7 @@ MemAbsIndJmp: (!$imm16)    is imm16  {
     local addr_lo:1 = *:1 ind_lo_addr;
     local addr_hi:1 = *:1 ind_hi_addr;
     local address:3 = (zext(PBR) << 16) | (zext(addr_hi) << 8) | zext(addr_lo);
-    export *:3 address;
+    export address;
 }
 
 # Absolute indirect long.
@@ -44,13 +44,13 @@ MemAbsIndLongJmp: [!$imm16]    is imm16  {
     local addr_hi:1 = *:1 ind_hi_addr;
     local addr_bank:1 = *:1 ind_bank_addr;
     local address:3 = (zext(addr_bank) << 16) | (zext(addr_hi) << 8) | zext(addr_lo);
-    export *:3 address;
+    export address;
 }
 
 # Absolute long.
 MemAbsLongJmp: !>$imm24    is imm24  {
     local address:3 = imm24;
-    export *:3 address;
+    export address;
 }
 
 # PC relative.
