@@ -568,6 +568,36 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void jmpAbsoluteTransfersToAddressValue() throws Exception {
+        Run run = startAt(0x120000, new byte[] {0x4c, 0x34, 0x12}); // JMP $1234
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0x0000);
+        writeRegister(run, "PBR", 0x12);
+        writeMemory(run, 0x121234, new byte[] {(byte) 0xea}); // NOP
+
+        executeOne(run);
+
+        assertEquals(run.space().getAddress(0x121234), run.thread().getCounter());
+        assertEquals(0x1234, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"));
+    }
+
+    @Test
+    void jmlAbsoluteLongTransfersToAddressValue() throws Exception {
+        Run run = startAt(0x12fffc, new byte[] {0x5c, 0x78, 0x56, 0x34}); // JML $345678
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xfffc);
+        writeRegister(run, "PBR", 0x12);
+        writeMemory(run, 0x345678, new byte[] {(byte) 0xea}); // NOP
+
+        executeOne(run);
+
+        assertEquals(run.space().getAddress(0x345678), run.thread().getCounter());
+        assertEquals(0x5678, readRegister(run, "PC"));
+        assertEquals(0x34, readRegister(run, "PBR"));
+    }
+
+    @Test
     void jsrAtProgramBankEndReturnsThroughRtsWithinTheSameBank() throws Exception {
         Run run = startAt(0x12fffd, new byte[] {0x20, 0x34, 0x12}); // JSR $1234
         setContextBit(run, "ctx_EF", 0);
