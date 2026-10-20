@@ -588,6 +588,8 @@ class PcodeEmulatorRegressionTest {
             readMemory(run, 0x121234, 1), readMemory(run, 0x12fffd, 1),
             readMemory(run, 0x12fffe, 1), readMemory(run, 0x12ffff, 1));
 
+        assertEquals(run.space().getAddress(0x121234), run.thread().getCounter(),
+            "JSR must transfer to the RAM address selected by its absolute operand");
         assertEquals(0x1234, readRegister(run, "PC"));
         assertEquals(0x12, readRegister(run, "PBR"));
         assertEquals(0x01fd, readRegister(run, "SP"));
@@ -596,6 +598,8 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
+        assertEquals(run.space().getAddress(0x120000), run.thread().getCounter(),
+            "RTS return must wrap within the caller's program bank");
         assertEquals(0x0000, readRegister(run, "PC"),
             "RTS increments $FFFF and wraps PC without changing PBR");
         assertEquals(0x12, readRegister(run, "PBR"));
@@ -624,6 +628,8 @@ class PcodeEmulatorRegressionTest {
 
 
 
+        assertEquals(run.space().getAddress(0x345678), run.thread().getCounter(),
+            "JSL must transfer to the full 24-bit RAM target");
         assertEquals(0x5678, readRegister(run, "PC"));
         assertEquals(0x34, readRegister(run, "PBR"));
         assertEquals(0x01fc, readRegister(run, "SP"));
@@ -633,6 +639,8 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
+        assertEquals(run.space().getAddress(0x120000), run.thread().getCounter(),
+            "RTL return must restore the caller's bank and wrapped PC");
         assertEquals(0x0000, readRegister(run, "PC"),
             "RTL increments $FFFF and wraps the caller's PC");
         assertEquals(0x12, readRegister(run, "PBR"),
