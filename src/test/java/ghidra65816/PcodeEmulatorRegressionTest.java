@@ -587,7 +587,7 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
-    void singleStepTestsFormatFixtureMatchesProcessorStateAndMemory() throws Exception {
+    void singleStepTestsReadmeVectorMatchesProcessorStateAndMemory() throws Exception {
         JsonObject fixture;
         Path fixturePath = Path.of("src/test/resources/singlestep/3d.e.json");
         try (Reader reader = Files.newBufferedReader(fixturePath)) {
