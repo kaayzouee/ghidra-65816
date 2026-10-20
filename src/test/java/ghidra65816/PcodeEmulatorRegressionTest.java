@@ -190,13 +190,7 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
-        System.out.printf(
-            "DIAG JSR counter=%s full=%06x pc=%04x pbr=%02x sp=%04x stack=%02x,%02x target=%02x source=%02x,%02x,%02x%n",
-            run.thread().getCounter(), readRegister(run, "PC_FULL"), readRegister(run, "PC"),
-            readRegister(run, "PBR"), readRegister(run, "SP"),
-            readMemory(run, 0x01ff, 1), readMemory(run, 0x01fe, 1),
-            readMemory(run, 0x121234, 1), readMemory(run, 0x12fffd, 1),
-            readMemory(run, 0x12fffe, 1), readMemory(run, 0x12ffff, 1));
+
 
         assertEquals(0x1234, readRegister(run, "PC"));
         assertEquals(1, readRegister(run, "NF"));
@@ -586,6 +580,14 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
+        System.out.printf(
+            "DIAG JSR counter=%s full=%06x pc=%04x pbr=%02x sp=%04x stack=%02x,%02x target=%02x source=%02x,%02x,%02x%n",
+            run.thread().getCounter(), readRegister(run, "PC_FULL"), readRegister(run, "PC"),
+            readRegister(run, "PBR"), readRegister(run, "SP"),
+            readMemory(run, 0x01ff, 1), readMemory(run, 0x01fe, 1),
+            readMemory(run, 0x121234, 1), readMemory(run, 0x12fffd, 1),
+            readMemory(run, 0x12fffe, 1), readMemory(run, 0x12ffff, 1));
+
         assertEquals(0x1234, readRegister(run, "PC"));
         assertEquals(0x12, readRegister(run, "PBR"));
         assertEquals(0x01fd, readRegister(run, "SP"));
@@ -619,6 +621,8 @@ class PcodeEmulatorRegressionTest {
             readMemory(run, 0x345678, 1), readMemory(run, 0x12fffc, 1),
             readMemory(run, 0x12fffd, 1), readMemory(run, 0x12fffe, 1),
             readMemory(run, 0x12ffff, 1));
+
+
 
         assertEquals(0x5678, readRegister(run, "PC"));
         assertEquals(0x34, readRegister(run, "PBR"));
