@@ -43,6 +43,7 @@ Ghidra's `PcodeEmulator`. The current suite executes twenty-four instruction seq
 | `RTI` | Emulation-mode status/PC restoration and stack pointer movement |
 | `BRK` / `COP` | Emulation-mode status push ordering, program-bank clearing, and vector transfer |
 | `MVN` / `MVP` | Block-copy direction, count, bank selection, and index-width behavior |
+| `JSR` / `RTS` / `JSL` / `RTL` | Near/far calls at the end of a program bank; stacked return bytes, PC wrap, and PBR restoration |
 
 Use Java 21 and Gradle 8.5 for the runtime tests. With the official Ghidra 12.1.4 distribution
 already extracted, run:
