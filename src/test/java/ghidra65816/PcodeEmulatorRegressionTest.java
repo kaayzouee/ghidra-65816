@@ -571,6 +571,7 @@ class PcodeEmulatorRegressionTest {
     void jsrAtProgramBankEndReturnsThroughRtsWithinTheSameBank() throws Exception {
         Run run = startAt(0x12fffd, new byte[] {0x20, 0x34, 0x12}); // JSR $1234
         setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xfffd);
         writeRegister(run, "PBR", 0x12);
         writeRegister(run, "SP", 0x01ff);
         writeMemory(run, 0x121234, new byte[] {0x60}); // RTS
@@ -595,6 +596,7 @@ class PcodeEmulatorRegressionTest {
     void jslAtProgramBankEndReturnsThroughRtlAcrossBanks() throws Exception {
         Run run = startAt(0x12fffc, new byte[] {0x22, 0x78, 0x56, 0x34}); // JSL $345678
         setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xfffc);
         writeRegister(run, "PBR", 0x12);
         writeRegister(run, "SP", 0x01ff);
         writeMemory(run, 0x345678, new byte[] {0x6b}); // RTL
