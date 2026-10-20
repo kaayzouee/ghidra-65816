@@ -604,16 +604,19 @@ class PcodeEmulatorRegressionTest {
     void jmpAbsoluteIndirectWrapsPointerWithinBankZero() throws Exception {
         Run run = startAt(0x121000, new byte[] {0x6c, (byte) 0xff, (byte) 0xff}); // JMP ($ffff)
         setContextBit(run, "ctx_EF", 0);
-        writeRegister(run, "PC", 0x1000);
+        setContextBit(run, "ctx_MF", 1);
         writeRegister(run, "PBR", 0x12);
         writeMemory(run, 0x00ffff, new byte[] {0x34});
         writeMemory(run, 0x000000, new byte[] {0x12});
+        writeMemory(run, 0x121234, new byte[] {(byte) 0xa9, 0x5a}); // LDA #$5a
+        writeMemory(run, 0x001234, new byte[] {(byte) 0xa9, (byte) 0xa5}); // Wrong-bank sentinel
 
         executeOne(run);
+        executeOne(run);
 
-        assertEquals(0x1234, readRegister(run, "PC"));
-        assertEquals(0x12, readRegister(run, "PBR"),
-            "Absolute indirect JMP changes PC but preserves the program bank");
+        assertEquals(0x5a, readRegister(run, "A"),
+            "JMP ($ffff) reads its pointer in bank zero, wraps the high-byte fetch, and keeps PBR");
+        assertEquals(0x12, readRegister(run, "PBR"));
     }
 
     @Test
