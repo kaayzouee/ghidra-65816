@@ -566,4 +566,55 @@ class PcodeEmulatorRegressionTest {
         assertEquals(1, readRegister(run, "CF"));
         assertEquals(1, readRegister(run, "ZF"));
     }
+
+    @Test
+    void jsrAtProgramBankEndReturnsThroughRtsWithinTheSameBank() throws Exception {
+        Run run = startAt(0x12fffd, new byte[] {0x20, 0x34, 0x12}); // JSR $1234
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PBR", 0x12);
+        writeRegister(run, "SP", 0x01ff);
+        writeMemory(run, 0x121234, new byte[] {0x60}); // RTS
+
+        executeOne(run);
+
+        assertEquals(0x1234, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"));
+        assertEquals(0x01fd, readRegister(run, "SP"));
+        assertEquals(0xff, readMemory(run, 0x01fe, 1), "JSR pushes return-address low byte");
+        assertEquals(0xff, readMemory(run, 0x01ff, 1), "JSR pushes return-address high byte");
+
+        executeOne(run);
+
+        assertEquals(0x0000, readRegister(run, "PC"),
+            "RTS increments $FFFF and wraps PC without changing PBR");
+        assertEquals(0x12, readRegister(run, "PBR"));
+        assertEquals(0x01ff, readRegister(run, "SP"));
+    }
+
+    @Test
+    void jslAtProgramBankEndReturnsThroughRtlAcrossBanks() throws Exception {
+        Run run = startAt(0x12fffc, new byte[] {0x22, 0x78, 0x56, 0x34}); // JSL $345678
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PBR", 0x12);
+        writeRegister(run, "SP", 0x01ff);
+        writeMemory(run, 0x345678, new byte[] {0x6b}); // RTL
+
+        executeOne(run);
+
+        assertEquals(0x5678, readRegister(run, "PC"));
+        assertEquals(0x34, readRegister(run, "PBR"));
+        assertEquals(0x01fc, readRegister(run, "SP"));
+        assertEquals(0xff, readMemory(run, 0x01fd, 1), "JSL pushes return-address low byte");
+        assertEquals(0xff, readMemory(run, 0x01fe, 1), "JSL pushes return-address high byte");
+        assertEquals(0x12, readMemory(run, 0x01ff, 1), "JSL pushes caller's program bank");
+
+        executeOne(run);
+
+        assertEquals(0x0000, readRegister(run, "PC"),
+            "RTL increments $FFFF and wraps the caller's PC");
+        assertEquals(0x12, readRegister(run, "PBR"),
+            "RTL restores the caller's bank from the stack");
+        assertEquals(0x01ff, readRegister(run, "SP"));
+    }
+
 }
