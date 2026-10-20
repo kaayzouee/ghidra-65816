@@ -78,3 +78,8 @@ which Java version the release requires.
 Keep changes small. A passing build is necessary, but it is not proof of correct emulation. Also,
 immediate operands are modelled through references to instruction bytes, which can limit constant
 propagation in analysis.
+
+
+## SingleStepTests adapter
+
+The runtime suite contains a small committed state/memory fixture from the public [SingleStepTests/65816](https://github.com/SingleStepTests/65816) README sample. `PcodeEmulatorRegressionTest` loads the fixture's initial RAM and CPU state, executes one instruction, then compares architecturally relevant final registers, flags, and listed memory bytes. This is a smoke test of the adapter and not broad corpus coverage or bus-cycle validation. The fixture attribution and upstream MIT license are in `src/test/resources/singlestep/`. Keep PR CI bounded; broader upstream corpus runs should be an opt-in or scheduled job.
