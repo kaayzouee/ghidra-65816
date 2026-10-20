@@ -10,9 +10,8 @@ MemAbsIdxIndJmp: (!$imm16,"X")    is imm16 & IdxX  {
     # Accessing the indirect address must wrap to stay within the bank.
     # Indexing does NOT allow the indirect lookup to cross bank boundaries.
     local offset:2 = imm16 + IdxX;
-    local next_offset:2 = offset + 1;
     local ind_lo_addr:3 = (zext(PBR) << 16) | zext(offset);
-    local ind_hi_addr:3 = (zext(PBR) << 16) | zext(next_offset);
+    local ind_hi_addr:3 = (zext(PBR) << 16) | zext(offset + 1);
 
     local addr_lo:1 = *:1 ind_lo_addr;
     local addr_hi:1 = *:1 ind_hi_addr;
@@ -24,9 +23,8 @@ MemAbsIdxIndJmp: (!$imm16,"X")    is imm16 & IdxX  {
 MemAbsIndJmp: (!$imm16)    is imm16  {
     # Accessing the indirect address must wrap to stay within bank 0.
     local offset:2 = imm16;
-    local next_offset:2 = offset + 1;
     local ind_lo_addr:3 = zext(offset);
-    local ind_hi_addr:3 = zext(next_offset);
+    local ind_hi_addr:3 = zext(offset + 1);
 
     local addr_lo:1 = *:1 ind_lo_addr;
     local addr_hi:1 = *:1 ind_hi_addr;
@@ -38,11 +36,9 @@ MemAbsIndJmp: (!$imm16)    is imm16  {
 MemAbsIndLongJmp: [!$imm16]    is imm16  {
     # Accessing the indirect address must wrap to stay within bank 0.
     local offset:2 = imm16;
-    local next_offset:2 = offset + 1;
-    local bank_offset:2 = offset + 2;
     local ind_lo_addr:3 = zext(offset);
-    local ind_hi_addr:3 = zext(next_offset);
-    local ind_bank_addr:3 = zext(bank_offset);
+    local ind_hi_addr:3 = zext(offset + 1);
+    local ind_bank_addr:3 = zext(offset + 2);
 
     local addr_lo:1 = *:1 ind_lo_addr;
     local addr_hi:1 = *:1 ind_hi_addr;
