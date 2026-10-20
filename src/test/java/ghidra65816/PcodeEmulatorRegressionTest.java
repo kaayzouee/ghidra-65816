@@ -566,4 +566,80 @@ class PcodeEmulatorRegressionTest {
         assertEquals(1, readRegister(run, "CF"));
         assertEquals(1, readRegister(run, "ZF"));
     }
+
+    @Test
+    void ldaAbsoluteXCanCarryIntoTheNextDataBank() throws Exception {
+        Run run = start(new byte[] {(byte) 0xbd, (byte) 0xff, (byte) 0xff}); // LDA $ffff,X
+        setContextBit(run, "ctx_EF", 0);
+        setContextBit(run, "ctx_MF", 1);
+        setContextBit(run, "ctx_XF", 0);
+        writeRegister(run, "DBR", 0x12);
+        writeRegister(run, "X", 1);
+        writeMemory(run, 0x12ffff, new byte[] {0x11});
+        writeMemory(run, 0x130000, new byte[] {0x5a});
+
+        executeOne(run);
+
+        assertEquals(0x5a, readRegister(run, "A"),
+            "Absolute indexed addressing carries from DBR:$ffff into the next bank");
+    }
+
+    @Test
+    void ldaSixteenBitAbsoluteReadCanStraddleDataBankBoundary() throws Exception {
+        Run run = start(new byte[] {(byte) 0xad, (byte) 0xff, (byte) 0xff}); // LDA $ffff
+        setContextBit(run, "ctx_EF", 0);
+        setContextBit(run, "ctx_MF", 0);
+        writeRegister(run, "DBR", 0x12);
+        writeRegister(run, "C", 0xabcd);
+        writeMemory(run, 0x12ffff, new byte[] {0x34});
+        writeMemory(run, 0x130000, new byte[] {0x12});
+
+        executeOne(run);
+
+        assertEquals(0x1234, readRegister(run, "C"),
+            "The high byte of a 16-bit data access comes from the next bank");
+    }
+
+    @Test
+    void jmpAbsoluteIndirectWrapsPointerWithinBankZero() throws Exception {
+        Run run = startAt(0x121000, new byte[] {0x6c, (byte) 0xff, (byte) 0xff}); // JMP ($ffff)
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0x1000);
+        writeRegister(run, "PBR", 0x12);
+        writeMemory(run, 0x00ffff, new byte[] {0x34});
+        writeMemory(run, 0x000000, new byte[] {0x12});
+
+        executeOne(run);
+
+        assertEquals(0x1234, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"),
+            "Absolute indirect JMP changes PC but preserves the program bank");
+    }
+
+    @Test
+    void braAtProgramBankEndWrapsWithinTheSameBank() throws Exception {
+        Run run = startAt(0x12ffff, new byte[] {(byte) 0x80, (byte) 0xfe}); // BRA -2
+        writeRegister(run, "PC", 0xffff);
+        writeRegister(run, "PBR", 0x12);
+
+        executeOne(run);
+
+        assertEquals(0xffff, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"),
+            "Relative branches wrap the 16-bit PC without carrying into PBR");
+    }
+
+    @Test
+    void brlAtProgramBankEndWrapsWithinTheSameBank() throws Exception {
+        Run run = startAt(0x12fffd, new byte[] {(byte) 0x82, (byte) 0xfe, (byte) 0xff}); // BRL -2
+        writeRegister(run, "PC", 0xfffd);
+        writeRegister(run, "PBR", 0x12);
+
+        executeOne(run);
+
+        assertEquals(0xfffe, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"),
+            "Relative long branches wrap the 16-bit PC without carrying into PBR");
+    }
+
 }
