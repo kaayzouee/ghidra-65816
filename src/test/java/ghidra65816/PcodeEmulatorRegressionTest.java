@@ -602,15 +602,18 @@ class PcodeEmulatorRegressionTest {
 
     @Test
     void braAtProgramBankEndWrapsWithinTheSameBank() throws Exception {
-        Run run = startAt(0x12ffff, new byte[] {(byte) 0x80, (byte) 0xfe}); // BRA -2
-        writeRegister(run, "PC", 0xffff);
+        // Both instruction bytes are in this bank; after fetch, PC wraps to $0000.
+        Run run = startAt(0x12fffe, new byte[] {(byte) 0x80, 0x00}); // BRA +0
+        writeRegister(run, "PC", 0xfffe);
         writeRegister(run, "PBR", 0x12);
 
         executeOne(run);
 
-        assertEquals(0xffff, readRegister(run, "PC"));
+        assertEquals(0x0000, readRegister(run, "PC"));
         assertEquals(0x12, readRegister(run, "PBR"),
             "Relative branches wrap the 16-bit PC without carrying into PBR");
+        assertEquals(run.space().getAddress(0x120000), run.thread().getCounter(),
+            "BRA must target offset $0000 in the original program bank");
     }
 
     @Test
@@ -624,6 +627,8 @@ class PcodeEmulatorRegressionTest {
         assertEquals(0xfffe, readRegister(run, "PC"));
         assertEquals(0x12, readRegister(run, "PBR"),
             "Relative long branches wrap the 16-bit PC without carrying into PBR");
+        assertEquals(run.space().getAddress(0x12fffe), run.thread().getCounter(),
+            "BRL must remain in the original program bank after the 16-bit PC wraps");
     }
 
 }
