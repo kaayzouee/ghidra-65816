@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,6 +69,17 @@ class PcodeEmulatorRegressionTest {
         PcodeEmulator emulator = new PcodeEmulator(language);
         AddressSpace space = language.getDefaultSpace();
         emulator.getSharedState().setVar(space, codeAddress, code.length, false, code);
+        return startAt(emulator, space, codeAddress);
+    }
+
+    private static Run startAt(long codeAddress) {
+        PcodeEmulator emulator = new PcodeEmulator(language);
+        AddressSpace space = language.getDefaultSpace();
+        return startAt(emulator, space, codeAddress);
+    }
+
+    private static Run startAt(
+            PcodeEmulator emulator, AddressSpace space, long codeAddress) {
         PcodeThread<byte[]> thread = emulator.newThread();
         thread.overrideCounter(space.getAddress(codeAddress));
         thread.overrideContextWithDefault();
@@ -588,7 +598,7 @@ class PcodeEmulatorRegressionTest {
         JsonObject expected = fixture.getAsJsonObject("final");
         long codeAddress = (initial.get("pbr").getAsLong() << 16)
             | initial.get("pc").getAsLong();
-        Run run = startAt(codeAddress, new byte[] {0x3d, 0x18, (byte) 0xbb});
+        Run run = startAt(codeAddress);
 
         for (JsonElement entry : initial.getAsJsonArray("ram")) {
             JsonArray pair = entry.getAsJsonArray();
