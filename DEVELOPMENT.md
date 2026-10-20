@@ -43,7 +43,7 @@ Ghidra's `PcodeEmulator`. The current runtime suite contains focused regression 
 | `RTI` | Emulation-mode status/PC restoration and stack pointer movement |
 | `BRK` / `COP` | Emulation-mode status push ordering, program-bank clearing, and vector transfer |
 | `MVN` / `MVP` | Block-copy direction, count, bank selection, and index-width behavior |
-| `LDA` / `JMP` / `BRA` / `BRL` | Data-bank carry and straddling reads; indirect pointer wrap; program-bank-relative branch wrap |
+| `LDA` / `BRA` / `BRL` | Data-bank carry and straddling reads; program-bank-relative branch wrap |
 
 Use Java 21 and Gradle 8.5 for the runtime tests. With the official Ghidra 12.1.4 distribution
 already extracted, run:
