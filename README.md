@@ -59,3 +59,6 @@ In the CodeBrowser, right-click the first instruction and use **Processor Option
 ## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the small local test suite and SLEIGH compiler check.
+## Supported scope
+
+This repository targets the WDC 65C816 instruction set and Ghidra's static analysis model. SNES ROM loading and memory mapping are platform integrations, not CPU-core semantics; they should be maintained as a separate optional layer. The 65802 variant remains unsupported until it has a dedicated compatibility matrix and tests. See [the support scope](docs/SUPPORT.md) for the current boundaries and acceptance criteria.
