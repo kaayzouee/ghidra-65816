@@ -617,6 +617,63 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void singleByteXbaAtProgramBankEndExecutes() throws Exception {
+        Run run = startAt(0x12ffff, new byte[] {(byte) 0xeb}); // XBA
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xffff);
+        writeRegister(run, "PBR", 0x12);
+        writeRegister(run, "C", 0x1234);
+
+        executeOne(run);
+
+        assertEquals(0x3412, readRegister(run, "C"));
+    }
+
+    @Test
+    void bneAtProgramBankEndWrapsBeforeApplyingDisplacement() throws Exception {
+        Run run = startAt(0x12fffe, new byte[] {(byte) 0xd0, 0x02}); // BNE +2
+        writeRegister(run, "PC", 0xfffe);
+        writeRegister(run, "PBR", 0x12);
+        writeRegister(run, "ZF", 0);
+
+        executeOne(run);
+
+        assertEquals(0x0002, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"));
+        assertEquals(run.space().getAddress(0x120002), run.thread().getCounter(),
+            "BNE applies its displacement after wrapping the 16-bit PC");
+    }
+
+    @Test
+    void jmpAbsoluteAtProgramBankEndReadsOperandBeforeBankWrap() throws Exception {
+        Run run = startAt(0x12fffd, new byte[] {(byte) 0x4c, 0x34, 0x12}); // JMP $1234
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xfffd);
+        writeRegister(run, "PBR", 0x12);
+
+        executeOne(run);
+
+        assertEquals(0x1234, readRegister(run, "PC"));
+        assertEquals(0x12, readRegister(run, "PBR"));
+        assertEquals(run.space().getAddress(0x121234), run.thread().getCounter());
+    }
+
+    @Test
+    void jmlAbsoluteLongAtProgramBankEndReadsAllThreeOperandBytes() throws Exception {
+        Run run = startAt(0x12fffc,
+            new byte[] {(byte) 0x5c, 0x78, 0x56, 0x34}); // JML $345678
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xfffc);
+        writeRegister(run, "PBR", 0x12);
+
+        executeOne(run);
+
+        assertEquals(0x5678, readRegister(run, "PC"));
+        assertEquals(0x34, readRegister(run, "PBR"));
+        assertEquals(run.space().getAddress(0x345678), run.thread().getCounter());
+    }
+
+    @Test
     void jsrAtProgramBankEndReturnsThroughRtsWithinTheSameBank() throws Exception {
         Run run = startAt(0x12fffd, new byte[] {0x20, 0x34, 0x12}); // JSR $1234
         setContextBit(run, "ctx_EF", 0);
