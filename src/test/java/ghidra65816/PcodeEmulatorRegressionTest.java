@@ -677,13 +677,25 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
-    void singleStepTestsReadmeVectorMatchesProcessorStateAndMemory() throws Exception {
+    void singleStepFixturesMatchProcessorStateAndMemory() throws Exception {
+        for (String fixtureName : new String[] {
+                "3d.e.json",
+                "local-lda-immediate-emulation.json",
+                "local-cmp-immediate-native.json",
+                "local-xba-native.json"
+        }) {
+            assertSingleStepFixture(
+                Path.of("src/test/resources/singlestep", fixtureName));
+        }
+    }
+
+    private void assertSingleStepFixture(Path fixturePath) throws Exception {
         JsonObject fixture;
-        Path fixturePath = Path.of("src/test/resources/singlestep/3d.e.json");
         try (Reader reader = Files.newBufferedReader(fixturePath)) {
             fixture = JsonParser.parseReader(reader).getAsJsonObject();
         }
 
+        String fixtureName = fixture.get("name").getAsString();
         JsonObject initial = fixture.getAsJsonObject("initial");
         JsonObject expected = fixture.getAsJsonObject("final");
         long codeAddress = (initial.get("pbr").getAsLong() << 16)
@@ -719,32 +731,46 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
-        assertEquals(expected.get("pc").getAsLong(), readRegister(run, "PC"), "PC");
-        assertEquals(expected.get("pbr").getAsLong(), readRegister(run, "PBR"), "PBR");
-        assertEquals(expected.get("a").getAsLong(), readRegister(run, "C"), "Accumulator");
-        assertEquals(expected.get("x").getAsLong(), readRegister(run, "X"), "X");
-        assertEquals(expected.get("y").getAsLong(), readRegister(run, "Y"), "Y");
-        assertEquals(expected.get("dbr").getAsLong(), readRegister(run, "DBR"), "DBR");
-        assertEquals(expected.get("d").getAsLong(), readRegister(run, "DP"), "Direct page");
-        assertEquals(expected.get("s").getAsLong(), readRegister(run, "SP"), "Stack pointer");
+        assertEquals(expected.get("pc").getAsLong(), readRegister(run, "PC"),
+            fixtureName + ": PC");
+        assertEquals(expected.get("pbr").getAsLong(), readRegister(run, "PBR"),
+            fixtureName + ": PBR");
+        assertEquals(expected.get("a").getAsLong(), readRegister(run, "C"),
+            fixtureName + ": accumulator");
+        assertEquals(expected.get("x").getAsLong(), readRegister(run, "X"),
+            fixtureName + ": X");
+        assertEquals(expected.get("y").getAsLong(), readRegister(run, "Y"),
+            fixtureName + ": Y");
+        assertEquals(expected.get("dbr").getAsLong(), readRegister(run, "DBR"),
+            fixtureName + ": DBR");
+        assertEquals(expected.get("d").getAsLong(), readRegister(run, "DP"),
+            fixtureName + ": direct page");
+        assertEquals(expected.get("s").getAsLong(), readRegister(run, "SP"),
+            fixtureName + ": stack pointer");
         long expectedStatus = expected.get("p").getAsLong();
-        assertEquals((expectedStatus >> 7) & 1, readRegister(run, "NF"), "N");
-        assertEquals((expectedStatus >> 6) & 1, readRegister(run, "VF"), "V");
-        assertEquals((expectedStatus >> 3) & 1, readRegister(run, "DF"), "D");
-        assertEquals((expectedStatus >> 2) & 1, readRegister(run, "IF"), "I");
-        assertEquals((expectedStatus >> 1) & 1, readRegister(run, "ZF"), "Z");
-        assertEquals(expectedStatus & 1, readRegister(run, "CF"), "C");
+        assertEquals((expectedStatus >> 7) & 1, readRegister(run, "NF"),
+            fixtureName + ": N");
+        assertEquals((expectedStatus >> 6) & 1, readRegister(run, "VF"),
+            fixtureName + ": V");
+        assertEquals((expectedStatus >> 3) & 1, readRegister(run, "DF"),
+            fixtureName + ": D");
+        assertEquals((expectedStatus >> 2) & 1, readRegister(run, "IF"),
+            fixtureName + ": I");
+        assertEquals((expectedStatus >> 1) & 1, readRegister(run, "ZF"),
+            fixtureName + ": Z");
+        assertEquals(expectedStatus & 1, readRegister(run, "CF"),
+            fixtureName + ": C");
 
         for (JsonElement entry : expected.getAsJsonArray("ram")) {
             JsonArray pair = entry.getAsJsonArray();
             assertEquals(pair.get(1).getAsLong(),
                 readMemory(run, pair.get(0).getAsLong(), 1),
-                "RAM at 0x" + Long.toHexString(pair.get(0).getAsLong()));
+                fixtureName + ": RAM at 0x"
+                    + Long.toHexString(pair.get(0).getAsLong()));
         }
     }
 
-
-    @Test
+        @Test
     void ldaAbsoluteXCanCarryIntoTheNextDataBank() throws Exception {
         Run run = start(new byte[] {(byte) 0xbd, (byte) 0xff, (byte) 0xff}); // LDA $ffff,X
         setContextBit(run, "ctx_EF", 0);
