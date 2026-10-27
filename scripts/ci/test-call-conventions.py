@@ -125,6 +125,21 @@ def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
         locations.append(left.split("&", 1)[1].split(")", 1)[0])
     return values, locations
 
+def extract_decompilations(source: str) -> dict[str, str]:
+    """Return decompiler output keyed by the labels emitted by the Java script."""
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+
+    for line in source.splitlines():
+        if line.startswith("=== ") and line.endswith(" decompile ==="):
+            current = line.removeprefix("=== ").removesuffix(" decompile ===")
+            sections[current] = []
+        elif current is not None:
+            sections[current].append(line)
+
+    return {name: "\n".join(lines).strip() for name, lines in sections.items()}
+
+
 
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="65816-call-convention-") as temporary:
@@ -174,71 +189,27 @@ def main() -> None:
         if "FAILED " in result:
             raise AssertionError("Decompiler failure:\n" + result)
 
-        caller = result.partition("=== caller decompile ===\n")[2].partition(
-            "=== near decompile ===\n"
-        )[0]
-        near = result.partition("=== near decompile ===\n")[2].partition(
-            "=== far decompile ===\n"
-        )[0]
-        far = result.partition("=== far decompile ===\n")[2].partition(
-            "=== caller16 decompile ===\n"
-        )[0]
-        caller16 = result.partition("=== caller16 decompile ===\n")[2].partition(
-            "=== near16 decompile ===\n"
-        )[0]
-        near16 = result.partition("=== near16 decompile ===\n")[2].partition(
-            "=== far16 decompile ===\n"
-        )[0]
-        far16 = result.partition("=== far16 decompile ===\n")[2].partition(
-            "=== callerVoid decompile ===\n"
-        )[0]
-        caller_void = result.partition("=== callerVoid decompile ===\n")[2].partition(
-            "=== nearVoid decompile ===\n"
-        )[0]
-        near_void = result.partition("=== nearVoid decompile ===\n")[2].partition(
-            "=== farVoid decompile ===\n"
-        )[0]
-        far_void = result.partition("=== farVoid decompile ===\n")[2].partition(
-            "=== nestedCaller decompile ===\n"
-        )[0]
-        nested_caller = result.partition("=== nestedCaller decompile ===\n")[2].partition(
-            "=== nestedWrapper decompile ===\n"
-        )[0]
-        nested_wrapper = result.partition("=== nestedWrapper decompile ===\n")[2].partition(
-            "=== stackDataCaller decompile ===\n"
-        )[0]
-        stack_data_caller = result.partition("=== stackDataCaller decompile ===\n")[2].partition(
-            "=== registerEffectsCaller decompile ===\n"
-        )[0]
-        register_effects_caller = result.partition(
-            "=== registerEffectsCaller decompile ===\n"
-        )[2].partition("=== registerEffectsCallee decompile ===\n")[0]
-        register_effects_callee = result.partition(
-            "=== registerEffectsCallee decompile ===\n"
-        )[2].partition("=== statusEffectsCaller decompile ===\n")[0]
-        status_effects_caller = result.partition(
-            "=== statusEffectsCaller decompile ===\n"
-        )[2].partition("=== crossBankCaller decompile ===\n")[0]
-        cross_bank_caller = result.partition(
-            "=== crossBankCaller decompile ===\n"
-        )[2].partition("=== crossBankCallee decompile ===\n")[0]
-        cross_bank_callee = result.partition(
-            "=== crossBankCallee decompile ===\n"
-        )[2].partition("=== emulationCaller decompile ===\n")[0]
-        emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
-            "=== nearEmu decompile ===\n"
-        )[0]
-        near_emu = result.partition("=== nearEmu decompile ===\n")[2].partition(
-            "=== farEmu decompile ===\n"
-        )[0]
-        far_emu = result.partition("=== farEmu decompile ===\n")[2]
-        if not all((
-            caller, near, far, caller16, near16, far16, caller_void, near_void, far_void,
-            nested_caller, nested_wrapper, stack_data_caller, register_effects_caller,
-            register_effects_callee, status_effects_caller, cross_bank_caller,
-            cross_bank_callee, emulation_caller, near_emu, far_emu
-        )):
-            raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
+        decompilations = extract_decompilations(result)
+        section_names = (
+            "caller", "near", "far", "caller16", "near16", "far16",
+            "callerVoid", "nearVoid", "farVoid", "nestedCaller", "nestedWrapper",
+            "stackDataCaller", "registerEffectsCaller", "registerEffectsCallee",
+            "statusEffectsCaller", "crossBankCaller", "crossBankCallee",
+            "emulationCaller", "nearEmu", "farEmu",
+        )
+        missing = [name for name in section_names if not decompilations.get(name)]
+        if missing:
+            raise AssertionError(
+                f"Headless test omitted decompilations {missing}:\\n{result}"
+            )
+
+        (
+            caller, near, far, caller16, near16, far16,
+            caller_void, near_void, far_void, nested_caller, nested_wrapper,
+            stack_data_caller, register_effects_caller, register_effects_callee,
+            status_effects_caller, cross_bank_caller, cross_bank_callee,
+            emulation_caller, near_emu, far_emu,
+        ) = (decompilations[name] for name in section_names)
 
         for name in ("near_fn(", "far_fn("):
             if name not in caller:
@@ -492,46 +463,9 @@ def main() -> None:
             )
 
         print("Native/emulation near/far and nested stack regression passed.")
-        print("=== caller ===")
-        print(caller)
-        print("=== near ===")
-        print(near)
-        print("=== far ===")
-        print(far)
-        print("=== caller16 ===")
-        print(caller16)
-        print("=== near16 ===")
-        print(near16)
-        print("=== far16 ===")
-        print(far16)
-        print("=== callerVoid ===")
-        print(caller_void)
-        print("=== nearVoid ===")
-        print(near_void)
-        print("=== farVoid ===")
-        print(far_void)
-        print("=== nestedCaller ===")
-        print(nested_caller)
-        print("=== nestedWrapper ===")
-        print(nested_wrapper)
-        print("=== stackDataCaller ===")
-        print(stack_data_caller)
-        print("=== registerEffectsCaller ===")
-        print(register_effects_caller)
-        print("=== registerEffectsCallee ===")
-        print(register_effects_callee)
-        print("=== statusEffectsCaller ===")
-        print(status_effects_caller)
-        print("=== crossBankCaller ===")
-        print(cross_bank_caller)
-        print("=== crossBankCallee ===")
-        print(cross_bank_callee)
-        print("=== emulationCaller ===")
-        print(emulation_caller)
-        print("=== nearEmu ===")
-        print(near_emu)
-        print("=== farEmu ===")
-        print(far_emu)
+        for label, body in decompilations.items():
+            print(f"=== {label} ===")
+            print(body)
 
 
 if __name__ == "__main__":
