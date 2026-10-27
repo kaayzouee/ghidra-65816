@@ -9,13 +9,20 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
-# Base address is 0x8000. The caller invokes $8100 with JSR and $008200 with JSL.
+# Base address is 0x8000. The caller passes values in A/C, X, and Y,
+# calls $8100 with JSR and $008200 with JSL, then stores each return value.
 ROM = bytearray([0xEA] * 0x300)
-ROM[0x0000:0x0010] = bytes.fromhex(
-    "a9 11 20 00 81 8d 00 03 22 00 82 00 8d 01 03 60"
+ROM[0x0000:0x001A] = bytes.fromhex(
+    "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
+    "a9 22 a2 05 a0 06 22 00 82 00 8d 01 03 60"
 )
-ROM[0x0100:0x0103] = bytes.fromhex("a9 22 60")  # near: LDA #$22; RTS
-ROM[0x0200:0x0203] = bytes.fromhex("a9 33 6b")  # far: LDA #$33; RTL
+# Both callees use all three input registers and return an 8-bit accumulator value.
+ROM[0x0100:0x010C] = bytes.fromhex(
+    "8d 02 03 8e 03 03 8c 04 03 a9 44 60"
+)
+ROM[0x0200:0x020C] = bytes.fromhex(
+    "8d 05 03 8e 06 03 8c 07 03 a9 55 6b"
+)
 
 
 def main() -> None:
@@ -66,6 +73,11 @@ def main() -> None:
             if name not in decompiled:
                 raise AssertionError(
                     f"Caller decompilation did not contain {name}:\n{decompiled}"
+                )
+        for marker in ("0x11", "0x22", "0x44", "0x55"):
+            if marker not in decompiled:
+                raise AssertionError(
+                    f"Caller/callee decompilation did not preserve {marker}:\n{decompiled}"
                 )
         print("Near/far calling-convention regression passed.")
         print(decompiled)
