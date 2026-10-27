@@ -14,7 +14,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 ROM = bytearray([0xEA] * 0x300)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
-    "a9 22 a2 05 a0 06 22 00 82 00 8d 01 03 60"
+    "a9 42 a2 05 a0 06 22 00 82 00 8d 01 03 60"
 )
 # Both callees use all three input registers and return an 8-bit accumulator value.
 ROM[0x0100:0x010C] = bytes.fromhex(
@@ -82,14 +82,20 @@ def main() -> None:
                 raise AssertionError(
                     f"Caller decompilation did not contain {name}:\n{caller}"
                 )
-        for marker in ("0x11", "0x22", "3", "4", "5", "6"):
+        # Ghidra renders 8-bit integer arguments as C character constants.
+        for marker in (r"'\x11'", r"'\x03'", r"'\x04'"):
             if marker not in caller:
                 raise AssertionError(
-                    f"Caller decompilation did not preserve input {marker}:\n{caller}"
+                    f"Near call did not preserve input {marker}:\n{caller}"
                 )
-        if "0x44" not in near:
+        for marker in ("'B'", r"'\x05'", r"'\x06'"):
+            if marker not in caller:
+                raise AssertionError(
+                    f"Far call did not preserve input {marker}:\n{caller}"
+                )
+        if "return 'D'" not in near:
             raise AssertionError("Near function return value was not recovered:\n" + near)
-        if "0x55" not in far:
+        if "return 'U'" not in far:
             raise AssertionError("Far function return value was not recovered:\n" + far)
 
         print("Near/far calling-convention regression passed.")
