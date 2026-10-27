@@ -15,6 +15,7 @@ import ghidra.program.model.lang.CompilerSpec;
 import ghidra.program.model.lang.Language;
 import ghidra.program.model.lang.LanguageID;
 import ghidra.program.model.lang.PrototypeModel;
+import ghidra.program.model.pcode.Varnode;
 import ghidra.program.util.DefaultLanguageService;
 
 /** Smoke tests for the 65816 compiler specification. */
@@ -52,7 +53,7 @@ class CompilerSpecRegressionTest {
     }
 
     @Test
-    void optionalNearAndFarModelsDoNotChangeTheDefault() {
+    void nearAndFarModelsDescribeTheirReturnAddresses() {
         CompilerSpec compilerSpec = language.getDefaultCompilerSpec();
         PrototypeModel near = compilerSpec.getCallingConvention("__near");
         PrototypeModel far = compilerSpec.getCallingConvention("__far");
@@ -66,5 +67,18 @@ class CompilerSpecRegressionTest {
         assertEquals(2, near.getStackshift());
         assertEquals(3, far.getExtrapop());
         assertEquals(3, far.getStackshift());
+
+        Varnode[] nearReturnAddress = near.getReturnAddress();
+        Varnode[] farReturnAddress = far.getReturnAddress();
+        assertNotNull(nearReturnAddress);
+        assertNotNull(farReturnAddress);
+        assertEquals(1, nearReturnAddress.length);
+        assertEquals(1, farReturnAddress.length);
+        assertEquals("stack", nearReturnAddress[0].getAddress().getAddressSpace().getName());
+        assertEquals("stack", farReturnAddress[0].getAddress().getAddressSpace().getName());
+        assertEquals(1, nearReturnAddress[0].getOffset());
+        assertEquals(1, farReturnAddress[0].getOffset());
+        assertEquals(2, nearReturnAddress[0].getSize());
+        assertEquals(3, farReturnAddress[0].getSize());
     }
 }
