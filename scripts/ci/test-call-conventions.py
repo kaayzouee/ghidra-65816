@@ -66,21 +66,39 @@ def main() -> None:
             raise AssertionError("Functions did not retain selected conventions:\n" + result)
         if "FAILED " in result:
             raise AssertionError("Decompiler failure:\n" + result)
-        decompiled = result.partition("=== caller decompile ===\n")[2]
-        if not decompiled:
-            raise AssertionError("Caller decompilation was not included:\n" + result)
+
+        caller = result.partition("=== caller decompile ===\n")[2].partition(
+            "=== near decompile ===\n"
+        )[0]
+        near = result.partition("=== near decompile ===\n")[2].partition(
+            "=== far decompile ===\n"
+        )[0]
+        far = result.partition("=== far decompile ===\n")[2]
+        if not caller or not near or not far:
+            raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
+
         for name in ("near_fn(", "far_fn("):
-            if name not in decompiled:
+            if name not in caller:
                 raise AssertionError(
-                    f"Caller decompilation did not contain {name}:\n{decompiled}"
+                    f"Caller decompilation did not contain {name}:\n{caller}"
                 )
-        for marker in ("0x11", "0x22", "0x44", "0x55"):
-            if marker not in decompiled:
+        for marker in ("0x11", "0x22", "3", "4", "5", "6"):
+            if marker not in caller:
                 raise AssertionError(
-                    f"Caller/callee decompilation did not preserve {marker}:\n{decompiled}"
+                    f"Caller decompilation did not preserve input {marker}:\n{caller}"
                 )
+        if "0x44" not in near:
+            raise AssertionError("Near function return value was not recovered:\n" + near)
+        if "0x55" not in far:
+            raise AssertionError("Far function return value was not recovered:\n" + far)
+
         print("Near/far calling-convention regression passed.")
-        print(decompiled)
+        print("=== caller ===")
+        print(caller)
+        print("=== near ===")
+        print(near)
+        print("=== far ===")
+        print(far)
 
 
 if __name__ == "__main__":
