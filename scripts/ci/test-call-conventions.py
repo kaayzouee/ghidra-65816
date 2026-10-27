@@ -39,11 +39,14 @@ ROM[0x0400:0x040D] = bytes.fromhex(
 
 # Void callees deliberately overwrite the accumulator. A caller must not keep
 # treating the pre-call accumulator value as live across either call.
-ROM[0x0060:0x0072] = bytes.fromhex(
-    "a9 11 20 00 85 8d 08 03 a9 22 22 00 86 80 8d 09 03 60"
+ROM[0x0060:0x0086] = bytes.fromhex(
+    "a9 11 a2 22 a0 33 20 00 85 "
+    "8d 08 03 8e 0a 03 8c 0b 03 "
+    "a9 55 a2 66 a0 77 22 00 86 80 "
+    "8d 09 03 8e 0c 03 8c 0d 03 60"
 )
-ROM[0x0500:0x0503] = bytes.fromhex("a9 44 60")
-ROM[0x0600:0x0603] = bytes.fromhex("a9 55 6b")
+ROM[0x0500:0x0507] = bytes.fromhex("a9 44 a2 88 a0 99 60")
+ROM[0x0600:0x0607] = bytes.fromhex("a9 aa a2 bb a0 cc 6b")
 
 
 def main() -> None:
@@ -158,13 +161,18 @@ def main() -> None:
 
         if "near_void(" not in caller_void or "far_void(" not in caller_void:
             raise AssertionError("Void callees missing from caller decompilation:\n" + caller_void)
-        # Void callees overwrite A; stale pre-call constants must not survive.
-        for stale_store in ("0x308) = 0x11", "0x309) = 0x22"):
-            if stale_store in caller_void:
-                raise AssertionError(
-                    f"Accumulator value incorrectly survives void call ({stale_store}):\n"
-                    + caller_void
-                )
+        # Void callees overwrite A/X/Y; stale pre-call values must not survive.
+        stale_stores = (
+            ("0x308)", "0x11"), ("0x30a)", "0x22"), ("0x30b)", "0x33"),
+            ("0x309)", "0x55"), ("0x30c)", "0x66"), ("0x30d)", "0x77"),
+        )
+        for location, stale_value in stale_stores:
+            for line in caller_void.splitlines():
+                if location in line and stale_value in line:
+                    raise AssertionError(
+                        f"Register value {stale_value} incorrectly survives void call "
+                        f"at {location}:\n{caller_void}"
+                    )
 
         # JSR pushes high/low return bytes; JSL pushes bank/high/low bytes.
         # The next call must reuse the caller's stack baseline after the first
