@@ -28,10 +28,16 @@ The models declare 2-byte and 3-byte return-address layouts for near and far cal
 
 ### ABI compatibility review
 
-The `__near` and `__far` models have been compared with the published [SNES-Dev w65 ABI v1](https://snes-dev.github.io/abi/v1.html), a proposed ABI for modern w65 toolchains. They are **not compatible** with that ABI: w65 places the first two small scalar parameters in `X` and `Y`, uses `A`/`C` for small scalar return values, and requires `JSL`/`RTL` for externally linked or address-taken functions. It also specifies extended in-memory argument registers, stack-passed remaining arguments, and mode-flag requirements that these example models do not represent.
+The optional models have been compared with two concrete ABI references, and neither should be treated as interchangeable with them.
 
-This is an ABI-level incompatibility finding, not a compiler-generated conformance test. No particular compiler output is currently used as the reference fixture. Do not assign `__near` or `__far` to functions merely because they run on a 65816; first identify the compiler/ABI used by the target. Supporting w65 ABI v1 should be implemented as a separate convention and verified against a pinned compiler-generated fixture, rather than changing these illustrative models in place.
+**OpenSNES `cc65816` (compiler-generated reference).** The checked-in fixture at `tests/fixtures/abi/opensnes-cc65816-reference.asm` captures examples published in [OpenSNES `compiler/ABI.md`](https://github.com/k0b3n4irb/opensnes/blob/main/compiler/ABI.md). That document says its assembly examples are actual output from `bin/cc65816 input.c -o output.asm`; its compiler toolchain pins are recorded in [`compiler/PINS.md`](https://github.com/k0b3n4irb/opensnes/blob/main/compiler/PINS.md). The fixture's ABI examples pass parameters on the stack, use `JSL`/`RTL`, return values up to 16 bits in A, and clean arguments in the caller. The optional `__near`/`__far` models instead pass inputs in C/X/Y and model near and far return addresses as 2 and 3 bytes. **They are not compatible with OpenSNES cc65816.** CI checks the checked-in reference snapshot and preserves this explicit incompatibility; it does not build or execute the external compiler.
 
+**SNES-Dev w65 ABI v1 (proposed ABI).** The published [w65 ABI v1 specification](https://snes-dev.github.io/abi/v1.html) uses X/Y for the first two small scalar parameters, A/C for small scalar return values, extended in-memory argument registers, and stack-passed remaining arguments. It also defines mode-flag requirements. The optional models do not implement that ABI either.
+
+The register-effects regression verifies the assumptions internal to these example models: C/X/Y argument and result recovery; X/Y and A clobbering; DP and DBR effects on effective addresses; status-flag effects after calls; PBR restoration across a cross-bank JSL/RTL; and SP/return-address stack restoration in nested native and emulation-mode calls. These synthetic tests do not establish compatibility with an arbitrary compiler or ROM.
+
+Do not assign `__near` or `__far` merely because a function runs on a 65816. Identify the actual compiler and ABI first. If OpenSNES compatibility is needed, add a separate prototype model and headless regression based on its stack-argument/caller-cleanup convention; do not repurpose these illustrative register models. The checked-in assembly is a pinned reference snapshot, not a substitute for compiling a conformance fixture with the target toolchain.
+ 
 ## When is a limitation fixed?
 
 Require a regression or repeatable fixture that fails before the change, a relevant CPU reference, and validation with the Ghidra version pinned in CI. Compilation alone is not sufficient.
