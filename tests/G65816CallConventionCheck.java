@@ -117,6 +117,8 @@ public class G65816CallConventionCheck extends GhidraScript {
             Address nestedCallerAddress = toAddr(0x8080A0);
             Address wrapperAddress = toAddr(0x808A00);
             Address stackDataCallerAddress = toAddr(0x808B00);
+            Address registerEffectsCallerAddress = toAddr(0x808C00);
+            Address registerEffectsCalleeAddress = toAddr(0x808C80);
 
             disassembleAt(callerAddress, context);
             disassembleAt(nearAddress, context);
@@ -138,6 +140,10 @@ public class G65816CallConventionCheck extends GhidraScript {
             // PHA data must survive a near/far call and be restored by PLA,
             // without being interpreted as a stack-passed argument.
             disassembleAt(stackDataCallerAddress, context);
+            // The far void callee modifies DP, DBR, and status flags. Its caller
+            // observes those effects through direct-page/absolute stores and BNE.
+            disassembleAt(registerEffectsCalleeAddress, context);
+            disassembleAt(registerEffectsCallerAddress, context);
 
             // In emulation mode M/X are 8-bit and the stack is page one. Set
             // callee context first so the caller cannot silently supply native mode.
@@ -166,6 +172,10 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function wrapper = functionAtOrCreate(wrapperAddress, "nested_wrapper");
             Function stackDataCaller =
                 functionAtOrCreate(stackDataCallerAddress, "stackDataCaller");
+            Function registerEffectsCaller =
+                functionAtOrCreate(registerEffectsCallerAddress, "registerEffectsCaller");
+            Function registerEffectsCallee =
+                functionAtOrCreate(registerEffectsCalleeAddress, "registerEffectsCallee");
 
             setRegisterAbi(near, "__near");
             setRegisterAbi(far, "__far");
@@ -179,6 +189,10 @@ public class G65816CallConventionCheck extends GhidraScript {
             nestedCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             stackDataCaller.setCallingConvention("__unknowncall");
             stackDataCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            registerEffectsCaller.setCallingConvention("__unknowncall");
+            registerEffectsCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            registerEffectsCallee.setCallingConvention("__far");
+            registerEffectsCallee.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             emulationCaller.setCallingConvention("__unknowncall");
             emulationCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             nearVoid.setCallingConvention("__near");
@@ -201,6 +215,7 @@ public class G65816CallConventionCheck extends GhidraScript {
             out.println("nearEmu=" + nearEmulation.getCallingConventionName());
             out.println("farEmu=" + farEmulation.getCallingConventionName());
             out.println("nestedWrapper=" + wrapper.getCallingConventionName());
+            out.println("registerEffectsCallee=" + registerEffectsCallee.getCallingConventionName());
 
             DecompInterface decompiler = new DecompInterface();
             try {
@@ -219,6 +234,8 @@ public class G65816CallConventionCheck extends GhidraScript {
                 decompileAndPrint(decompiler, nestedCaller, "nestedCaller", out);
                 decompileAndPrint(decompiler, wrapper, "nestedWrapper", out);
                 decompileAndPrint(decompiler, stackDataCaller, "stackDataCaller", out);
+                decompileAndPrint(decompiler, registerEffectsCaller, "registerEffectsCaller", out);
+                decompileAndPrint(decompiler, registerEffectsCallee, "registerEffectsCallee", out);
                 decompileAndPrint(decompiler, emulationCaller, "emulationCaller", out);
                 decompileAndPrint(decompiler, nearEmulation, "nearEmu", out);
                 decompileAndPrint(decompiler, farEmulation, "farEmu", out);
