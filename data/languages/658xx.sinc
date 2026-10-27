@@ -741,23 +741,31 @@ macro do_inc16(_out, _data) {
     Y = result;
 }
 
-JMP_OP: MemAbsJmp    is op=0x4c; MemAbsJmp  { export MemAbsJmp; }
 JMP_OP: MemAbsIndJmp    is op=0x6c; MemAbsIndJmp  { export MemAbsIndJmp; }
 JMP_OP: MemAbsIdxIndJmp    is op=0x7c; MemAbsIdxIndJmp  { export MemAbsIdxIndJmp; }
 
-# JMP
-:JMP JMP_OP    is (op=0x4c | op=0x6c | op=0x7c) ... & JMP_OP
+# JMP absolute.
+:JMP MemAbsJmp    is op=0x4c; MemAbsJmp
+{
+    goto MemAbsJmp;
+}
+
+# JMP indirect.
+:JMP JMP_OP    is (op=0x6c | op=0x7c) ... & JMP_OP
 {
     goto [JMP_OP];
 }
 
-JML_OP: MemAbsLongJmp    is op=0x5c; MemAbsLongJmp  { export MemAbsLongJmp; }
-JML_OP: MemAbsIndLongJmp    is op=0xdc; MemAbsIndLongJmp  { export MemAbsIndLongJmp; }
-
-# JML
-:JML JML_OP    is (op=0x5c | op=0xdc) ... & JML_OP
+# JML absolute long.
+:JML MemAbsLongJmp    is op=0x5c; MemAbsLongJmp
 {
-    goto [JML_OP];
+    goto MemAbsLongJmp;
+}
+
+# JML indirect long.
+:JML MemAbsIndLongJmp    is op=0xdc; MemAbsIndLongJmp
+{
+    goto [MemAbsIndLongJmp];
 }
 
 macro jsl_calculate_push_addr(_out) {
@@ -776,7 +784,7 @@ macro jsl_calculate_push_addr(_out) {
 {
     local push_addr:3; jsl_calculate_push_addr(push_addr);
     push24_native(push_addr);
-    call [MemAbsLongJmp];
+    call MemAbsLongJmp;
 }
 
 # JSL emulation.
@@ -789,10 +797,9 @@ macro jsl_calculate_push_addr(_out) {
     # underflowed in the middle of an instruction."
     push24_native(push_addr);
     SPHigh = 1;
-    call [MemAbsLongJmp];
+    call MemAbsLongJmp;
 }
 
-JSR_OP: MemAbsJmp    is op=0x20; MemAbsJmp  { export MemAbsJmp; }
 JSR_OP: MemAbsIdxIndJmp    is op=0xfc; MemAbsIdxIndJmp  { export MemAbsIdxIndJmp; }
 
 macro jsr_calculate_push_addr(_out) {
@@ -805,8 +812,16 @@ macro jsr_calculate_push_addr(_out) {
     _out = push_addr;
 }
 
-# JSR native, absolute addressing or absolute indexed indirect addressing.
-:JSR JSR_OP    is ctx_EF=0 & (op=0x20 | op=0xfc) ... & JSR_OP
+# JSR native, absolute addressing.
+:JSR MemAbsJmp    is ctx_EF=0 & op=0x20; MemAbsJmp
+{
+    local push_addr:2; jsr_calculate_push_addr(push_addr);
+    push16_native(push_addr);
+    call MemAbsJmp;
+}
+
+# JSR native, absolute indexed indirect addressing.
+:JSR JSR_OP    is ctx_EF=0 & op=0xfc ... & JSR_OP
 {
     local push_addr:2; jsr_calculate_push_addr(push_addr);
     push16_native(push_addr);
@@ -814,11 +829,11 @@ macro jsr_calculate_push_addr(_out) {
 }
 
 # JSR emulation, absolute addressing.
-:JSR JSR_OP    is ctx_EF=1 & op=0x20 ... & JSR_OP
+:JSR MemAbsJmp    is ctx_EF=1 & op=0x20; MemAbsJmp
 {
     local push_addr:2; jsr_calculate_push_addr(push_addr);
     push16_emulation(push_addr);
-    call [JSR_OP];
+    call MemAbsJmp;
 }
 
 # JSR emulation, absolute indexed indirect addressing.
