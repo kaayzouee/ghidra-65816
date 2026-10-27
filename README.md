@@ -1,64 +1,43 @@
 # Ghidra 65816
 
-A processor module for the WDC 65816 CPU in Ghidra.
+A processor module for the WDC W65C816S in Ghidra.
 
-This is an experimental community continuation of the original
-[ghidra-65816 project](https://github.com/achan1989/ghidra-65816). It is useful for
-disassembly and early analysis, but it is **not a cycle-accurate CPU emulator**. Verify important
-results against known-good 65816 documentation or test programs.
+This is an experimental community continuation of [achan1989/ghidra-65816](https://github.com/achan1989/ghidra-65816). It supports static disassembly and instruction-level P-code; it is **not cycle-accurate**.
 
 ## Install
 
-1. Copy this repository into your Ghidra `Processors` directory.
-2. Name the folder `65816`.
-3. Restart Ghidra.
-4. Import your ROM or binary and choose **65816** as the language.
-5. Set up the memory map before disassembling.
+1. Copy this repository to Ghidra's `Ghidra/Processors/65816` directory.
+2. Restart Ghidra.
+3. Import the binary, select **65816**, and configure its memory map and initial CPU state.
 
-## Set the initial CPU state
+## CPU state
 
-For each code entry point, set the processor context and registers to match the program.
+Set context and registers for each entry point:
 
 | Setting | Meaning |
 | --- | --- |
 | `MF` | Accumulator width: 1 = 8-bit, 0 = 16-bit |
-| `XF` | Index-register width: 1 = 8-bit, 0 = 16-bit |
+| `XF` | Index width: 1 = 8-bit, 0 = 16-bit |
 | `EF` | Emulation mode |
-| `PBR` | Program bank |
-| `DBR` | Data bank |
-| `DP` | Direct-page base |
-| `SP` | Stack pointer |
+| `PBR` / `DBR` | Program / data bank |
+| `DP` / `SP` | Direct page / stack pointer |
 | `DF` | Decimal mode flag |
 
-In the CodeBrowser, right-click the first instruction and use **Processor Options...** for
-`MF`, `XF`, and `EF`. Use **Set Register Values...** for registers such as `PBR`, `DBR`,
-`DP`, and `SP`.
+Use **Processor Options...** for `MF`, `XF`, and `EF`; use **Set Register Values...** for the other registers.
 
-## Current status
+## Status
 
-| Area | Status |
-| --- | --- |
-| Instruction decoding | Broad coverage; verify unusual bank-boundary cases |
-| P-code semantics | Improving; not fully validated against a CPU emulator |
-| Automatic mode tracking | Limited; changes to `MF`, `XF`, and `EF` may need manual context |
-| Interrupt entry points | Vector symbols exist, but entry points may need to be added manually |
-| 65802 variant | Not supported |
+- **Decoding:** broad opcode coverage. Branch, data-access, and near/far-call bank-boundary cases have regression tests.
+- **P-code:** regression-tested stack, status, arithmetic, control-flow, and context behavior.
+- **Immediate operands:** represented as constants for decompiler propagation.
+- **Tests:** source checks, pinned SLEIGH compilation, headless disassembly, runtime P-code tests, and a bounded 120-case SingleStepTests subset.
 
-## Known limitations
+## Limitations
 
-- Instructions and operands that cross the end of a program bank may be analysed incorrectly.
-- Immediate operands are modelled through references to instruction bytes, which can limit constant propagation in analysis.
-- `PLP` and `RTI` restore status bits at runtime, but Ghidra cannot automatically use the restored
-  `MF` and `XF` bits to select the correct decode context.
-- `XCE` changes emulation/native mode at runtime. Static disassembly context cannot always follow
-  a mode change that depends on the carry flag.
-- Interrupt vectors are not automatically created as code entry points.
-- Passing the test suite and compiling SLEIGH do not prove that every instruction behaves exactly
-  like real hardware.
+- Instruction bytes and fall-through can still cross a program-bank boundary incorrectly. See the [roadmap](docs/limitations-roadmap.md).
+- Static analysis cannot always infer `MF`/`XF`/`EF` from unknown stack contents, computed Carry, or conflicting paths.
+- `WAI` is modelled as fall-through; `STP` as a self-loop. Wait-state, interrupt wake-up, and hardware reset are not emulated.
+- This repository does not include a SNES ROM loader, automatic vector analyzer, or 65802 variant.
+- Passing tests does not prove full hardware correctness.
 
-## Development
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the small local test suite and SLEIGH compiler check.
-## Supported scope
-
-This repository targets the WDC 65C816 instruction set and Ghidra's static analysis model. SNES ROM loading and memory mapping are platform integrations, not CPU-core semantics; they should be maintained as a separate optional layer. The 65802 variant remains unsupported until it has a dedicated compatibility matrix and tests. See [the support scope](docs/SUPPORT.md) for the current boundaries and acceptance criteria.
+See [supported scope](docs/SUPPORT.md) and [development/testing](DEVELOPMENT.md).

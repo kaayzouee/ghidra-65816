@@ -1,6 +1,6 @@
 # Development
 
-## Run tests
+## Checks
 
 Run the source-level regression tests:
 
@@ -8,47 +8,17 @@ Run the source-level regression tests:
 python3 -m unittest discover --start-directory tests --verbose
 ```
 
-Compile the processor definition with the same Ghidra release used by CI (currently Ghidra
-12.1.4):
+Compile SLEIGH with the Ghidra version pinned in CI (currently 12.1.4):
 
 ```sh
 bash scripts/ci/compile-sleigh.sh /path/to/ghidra_12.1.4_PUBLIC
 ```
 
-The script compiles a temporary copy of `data/languages` twice and checks that the generated
-`65816.sla` files match. It does not add generated files to the repository.
-
-## What the checks mean
-
-| Check | Confirms | Does not confirm |
-| --- | --- | --- |
-| Python tests | Selected source patterns and XML metadata stay as expected | Full instruction correctness |
-| SLEIGH compile | The language compiles with the pinned Ghidra version | Runtime CPU behaviour |
-| Repeat compile | Identical inputs produce identical output | Correctness of the output |
-| P-code emulator tests | Selected instructions produce expected register, flag, stack, and vector results | Complete processor correctness |
+The script compiles a temporary copy twice and checks that the output matches. It does not prove CPU correctness.
 
 ## Runtime P-code tests
 
-CI also compiles the language into a temporary external Ghidra module and runs JUnit tests against
-Ghidra's `PcodeEmulator`. The current runtime suite contains focused regression cases for:
-
-| Instruction | Cases |
-| --- | --- |
-| `XBA` | Byte exchange; negative and zero flags |
-| `CMP abs` | Unsigned carry for less-than and equality |
-| `ADC` / `SBC` | Decimal-mode BCD results, carry/borrow, zero, negative, and overflow flags |
-| `CPY abs` | Correct comparison width in 8-bit and 16-bit index modes |
-| `XCE` | Native-to-native index preservation and native/emulation transitions |
-| `PHP` / `PLP` | Emulation-mode status image bits, live flag restore, and ignored B bit |
-| `RTI` | Emulation-mode status/PC restoration and stack pointer movement |
-| `BRK` / `COP` | Emulation-mode status push ordering, program-bank clearing, and vector transfer |
-| `JMP` / `JML` | Absolute and absolute-long control transfers use their computed target addresses |
-| `JSR` / `RTS` / `JSL` / `RTL` | Near/far calls at the end of a program bank; stacked return bytes, PC wrap, and PBR restoration |
-| `MVN` / `MVP` | Block-copy direction, count, bank selection, and index-width behavior |
-| `LDA` / `BRA` / `BRL` | Data-bank carry and straddling reads; program-bank-relative branch wrap |
-
-Use Java 21 and Gradle 8.5 for the runtime tests. With the official Ghidra 12.1.4 distribution
-already extracted, run:
+Use Java 21, Gradle 8.5, and Ghidra 12.1.4:
 
 ```sh
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
@@ -59,47 +29,18 @@ bash scripts/ci/compile-sleigh.sh "$GHIDRA_INSTALL_DIR" "$GHIDRA_EXTERNAL_MODULE
 gradle test
 ```
 
-The compiler helper also accepts only the Ghidra installation path; in that mode, it compiles a
-temporary copy and verifies reproducibility without setting up the runtime test module.
+Runtime regressions cover arithmetic and flags, status stack behavior, P-code stack operations, near/far control flow, selected bank-boundary cases, and `WAI`/`STP`. CI also runs headless disassembly checks and a deterministic 120-case subset of [SingleStepTests/65816](https://github.com/SingleStepTests/65816).
 
-## Update the Ghidra version
-
-The CI workflow pins the official Ghidra download and its SHA-256 hash. To update it, change
-`GHIDRA_VERSION`, `GHIDRA_RELEASE_DATE`, and `GHIDRA_SHA256` together in
-`.github/workflows/sleigh.yml`. Use the official
-[Ghidra releases](https://github.com/NationalSecurityAgency/ghidra/releases) page and check
-which Java version the release requires.
+The optional `.github/workflows/singlestep-full.yml` workflow runs 25,600 cases. It is not access-controlled by YAML alone: configure GitHub Actions workflow execution protection under **Settings → Actions → Policies** for this workflow, allowing only `workflow_dispatch` and maintainers/admins.
 
 ## Before changing CPU semantics
 
-1. Check the 65816 reference documentation.
-2. Add a focused regression test.
-3. Compile the language and run the tests.
-4. For behaviour that depends on runtime state, validate against trusted test vectors or an
-   independent emulator before claiming it is correct.
+1. Add a focused regression that fails before the fix.
+2. Compile SLEIGH and run the relevant tests.
+3. Cross-check surprising behavior against the [W65C816S datasheet](https://www.westerndesigncenter.com/wdc/documentation/w65c816s.pdf) and an independent implementation such as [MAME](https://github.com/mamedev/mame/tree/master/src/devices/cpu/g65816).
 
-Keep changes small. A passing build is necessary, but it is not proof of correct emulation. Also,
-immediate operands are modelled through references to instruction bytes, which can limit constant
-propagation in analysis.
+A passing test suite is evidence, not proof of complete hardware behavior. Immediate operands are constants; `WAI` is modelled as fall-through and `STP` as a self-loop.
 
+## Updating the Ghidra version
 
-## SingleStepTests adapter
-
-The runtime suite contains the compact `3d e 1` state/memory fixture published in the [SingleStepTests/65816 README](https://github.com/SingleStepTests/65816#sample-test), plus a bounded subset fetched from a pinned upstream commit during CI. `PcodeEmulatorRegressionTest` loads each case's initial RAM and CPU state, executes one instruction, then compares PC/PBR, accumulator, index registers, DBR/DP, stack pointer, the six live status flags, and listed final RAM bytes. The bounded subset covers ADC immediate, LDA immediate, PHA, PLA, STA absolute, and LDA direct-page-indirect-long indexed by Y, in both emulation and native modes (10 cases per opcode/mode). For corpus cases, the adapter normalizes the stack pointer to page 1 in emulation mode and clears high index-register bytes when the X flag selects 8-bit indexes, then compares the final state against the corpus values. This normalization is based on the constrained CPU state observed in the fetched corpus cases; the separate README smoke fixture remains a direct state-transition test of its published sample. This is state-transition regression coverage, not full corpus coverage or cycle-level bus validation. The fixture attribution and upstream MIT licence are included in `src/test/resources/singlestep/README.md` and `src/test/resources/singlestep/LICENCE`. The CI subset fetcher is `scripts/ci/fetch-singlestep-subset.py`; broader corpus runs remain suitable for an opt-in or scheduled job.
-
-## Full SingleStepTests corpus (maintainers only)
-
-The separate `.github/workflows/singlestep-full.yml` workflow is manually dispatched and runs
-the first 50 cases for every opcode in both emulation and native modes (25,600 cases total) from
-the same pinned upstream corpus revision. It verifies the generated case count, runs the same
-P-code emulator regression tests, and uploads test reports as an Actions artifact. This is a
-longer diagnostic run; ordinary pull-request CI remains limited to the 120-case subset.
-
-**Important: the workflow file alone does not enforce maintainer-only access.** Before relying on
-that restriction, a repository administrator must configure a GitHub Actions workflow execution
-protection under **Settings → Actions → Policies** targeting only
-`.github/workflows/singlestep-full.yml`. Allow actors with the repository **Maintain** or
-**Admin** role and allow only the `workflow_dispatch` event. Owners with Admin access are
-included. Do not rely on a YAML-only actor check: manual dispatch can select another branch, and
-the workflow file on that branch could be modified. GitHub's central execution policy is the
-enforcement boundary. See [GitHub's workflow execution protection documentation](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
+Update `GHIDRA_VERSION`, `GHIDRA_RELEASE_DATE`, and `GHIDRA_SHA256` together in `.github/workflows/sleigh.yml`, using the [official releases](https://github.com/NationalSecurityAgency/ghidra/releases) page.
