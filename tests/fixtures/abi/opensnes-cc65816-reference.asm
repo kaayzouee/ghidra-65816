@@ -4,8 +4,12 @@
 ;   Upstream: https://github.com/k0b3n4irb/opensnes/blob/main/compiler/ABI.md
 ;   ABI.md content blob SHA: 5156bcc0ff807c298aa5ecd2bff20796cb8a60dc
 ;   That document states that its assembly examples are actual output from
-;   bin/cc65816 input.c -o output.asm. Its compiler/PINS.md pins cproc, QBE,
-;   and WLA-DX to the exact revisions used by that OpenSNES checkout.
+;   bin/cc65816 input.c -o output.asm. The matching compiler/PINS.md records:
+;     cproc  075fa2cb03f026af20e403bce58d336cb1556d09
+;     QBE    40839d81eeee52c7661d742f6da53261cc0b187f
+;     WLA-DX 7382e4c8aff6b3e1a00459d9461cc487c5f55030
+;   This repo checks the published assembly snapshot; it does not rebuild that
+;   external compiler in CI.
 ;
 ; Example 1: generated leaf function
 ;   unsigned short sub(unsigned short a, unsigned short b) { return a - b; }
