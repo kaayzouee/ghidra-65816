@@ -10,7 +10,10 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 CODE_BASE = 0x128000
-ROM = bytes.fromhex("4c 34 12 20 78 56 5c 78 56 34 22 bc 9a 78")
+ROM = bytes.fromhex(
+    "4c 34 12 20 78 56 5c 78 56 34 22 bc 9a 78 "
+    "6c 34 12 7c 34 12 dc 34 12 fc 34 12"
+)
 EXPECTED = {
     CODE_BASE: ("JMP", 0x121234),
     CODE_BASE + 3: ("JSR", 0x125678),
@@ -76,7 +79,7 @@ def main() -> None:
                     f"{address:06x}: operand '{operand}' does not show full target {full_target}"
                 )
 
-        print("Absolute target display regressions: 4 instructions, full targets and flow references verified")
+        print("Absolute target display regressions: 4 direct and 4 computed-indirect forms checked")
 
 
 if __name__ == "__main__":
