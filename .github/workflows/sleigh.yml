@@ -65,12 +65,15 @@ jobs:
           GHIDRA_HOME: ${{ steps.ghidra.outputs.home }}
         run: |
           set -euo pipefail
-          module_dir="$RUNNER_TEMP/ghidra-external-modules/ghidra-65816"
+          module_dir="$GHIDRA_HOME/Ghidra/Processors/65816"
           mkdir -p "$module_dir"
           cp Module.manifest "$module_dir/Module.manifest"
           bash scripts/ci/compile-sleigh.sh "$GHIDRA_HOME" "$module_dir/data/languages"
           echo "GHIDRA_INSTALL_DIR=$GHIDRA_HOME" >> "$GITHUB_ENV"
           echo "GHIDRA_EXTERNAL_MODULES=$module_dir" >> "$GITHUB_ENV"
+
+      - name: Run headless disassembly regressions
+        run: python scripts/ci/test-issue-disassembly.py
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
