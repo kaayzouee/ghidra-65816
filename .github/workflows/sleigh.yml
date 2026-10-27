@@ -78,6 +78,9 @@ jobs:
       - name: Run absolute-target display regressions
         run: python scripts/ci/test-absolute-target-display.py
 
+      - name: Run near/far calling-convention regressions
+        run: python scripts/ci/test-call-conventions.py
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
