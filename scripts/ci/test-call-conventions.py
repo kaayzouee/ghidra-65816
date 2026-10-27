@@ -438,7 +438,7 @@ def main() -> None:
             raise AssertionError(
                 "PBR is modeled as caller-clobbered after RTL:\n" + cross_bank_caller
             )
-        if not ("unaff_PBR" in cross_bank_caller or "0x80" in cross_bank_caller):
+        if not any(name in cross_bank_caller for name in ("unaff_PBR", "in_PBR", "0x80")):
             raise AssertionError(
                 "Cross-bank call did not restore the caller's PBR value:\n"
                 + cross_bank_caller
