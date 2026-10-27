@@ -83,11 +83,17 @@ def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
     values: list[int] = []
     locations: list[str] = []
     for line in source.splitlines():
-        if ("&stack0x" in line or "&uStack_" in line) and " = " in line:
-            value = line.rsplit(" = ", 1)[1].rstrip(";").strip()
-            # Ghidra may print small values in decimal and others in hex.
-            values.append(int(value, 0))
-            locations.append(line.split("&", 1)[1].split(")", 1)[0])
+        if " = " not in line:
+            continue
+        left, right = line.split(" = ", 1)
+        # Only count stores whose destination is a stack slot. A normal
+        # memory store that reads stack0x0000 on its right side is not a push.
+        if "&stack0x" not in left and "&uStack_" not in left:
+            continue
+        value = right.rstrip(";").strip()
+        # Ghidra may print small values in decimal and others in hex.
+        values.append(int(value, 0))
+        locations.append(left.split("&", 1)[1].split(")", 1)[0])
     return values, locations
 
 
@@ -297,19 +303,34 @@ def main() -> None:
                 f"writes={wrapper_values}, locations={wrapper_locations}:\n{nested_wrapper}"
             )
 
-        # Stack bytes pushed by the caller must survive both call types. If the
-        # ABI model causes a stack-baseline leak, PLA can read the return address
-        # rather than the saved byte. Also verify these bytes are not passed as
-        # invented stack arguments to register-convention callees.
+        # PHA data must survive both call types. Return-address bytes should
+        # occupy higher stack slots, and the post-call store should still read
+        # the saved stack0x0000 byte rather than a return-address byte.
         if "nested_wrapper()" not in stack_data_caller or "near_fn(" not in stack_data_caller:
             raise AssertionError(
                 "Stack-data caller omitted calls or treated the wrapper as parameterized:\\n"
                 + stack_data_caller
             )
-        for address, value in (("0x324", "0x11"), ("0x325", "0x22")):
-            if not any(address in line and value in line for line in stack_data_caller.splitlines()):
+        stack_data_values, stack_data_locations = extract_stack_writes(stack_data_caller)
+        expected_stack_data_values = [0x11, 0x80, 0x8b, 6, 0x22, 0x8b, 0x10]
+        expected_stack_data_locations = [
+            "stack0x0000", "uStack_1", "uStack_2", "uStack_3",
+            "stack0x0000", "uStack_1", "uStack_2"
+        ]
+        if (stack_data_values != expected_stack_data_values
+                or stack_data_locations != expected_stack_data_locations):
+            raise AssertionError(
+                "Saved data or return addresses occupied unexpected stack slots. "
+                f"writes={stack_data_values}, locations={stack_data_locations}:\\n"
+                + stack_data_caller
+            )
+        for address in ("0x324", "0x325"):
+            if not any(
+                    address in line and "&stack0x0000" in line
+                    for line in stack_data_caller.splitlines()):
                 raise AssertionError(
-                    f"Saved stack byte {value} was not restored to {address}:\\n{stack_data_caller}"
+                    f"Store to {address} did not read back the saved stack0x0000 byte:\\n"
+                    + stack_data_caller
                 )
 
         # Emulation mode is a separate context, not just another native-mode
