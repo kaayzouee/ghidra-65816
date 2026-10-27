@@ -1,5 +1,10 @@
 name: Full SingleStepTests (maintainers only)
 
+# SECURITY: workflow_dispatch alone does not restrict who may run this workflow.
+# Configure a repository Actions execution protection for this exact workflow file:
+# allow actors with the Maintain or Admin repository role, and allow only workflow_dispatch.
+# This must be enforced in repository Settings > Actions > Policies; a YAML-only guard is not
+# sufficient because a dispatcher may select a branch containing a modified workflow file.
 on:
   workflow_dispatch:
 
