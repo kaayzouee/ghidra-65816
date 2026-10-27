@@ -9,6 +9,7 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.data.UnsignedCharDataType;
 import ghidra.program.model.data.UnsignedShortDataType;
 import ghidra.program.model.data.VoidDataType;
+import ghidra.program.model.data.DataType;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.Function;
@@ -59,32 +60,28 @@ public class G65816CallConventionCheck extends GhidraScript {
         return function;
     }
 
-    private void setRegisterAbi(Function function, String convention) throws Exception {
-        function.setCallingConvention(convention);
-        function.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
+    private void setRegisterAbi(Function function, String convention, DataType valueType)
+            throws Exception {
+        setFunctionConvention(function, convention, valueType);
         function.updateFunction(
             convention,
             null,
             FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS,
             true,
             SourceType.USER_DEFINED,
-            new ParameterImpl("argC", UnsignedCharDataType.dataType, currentProgram),
-            new ParameterImpl("argX", UnsignedCharDataType.dataType, currentProgram),
-            new ParameterImpl("argY", UnsignedCharDataType.dataType, currentProgram));
+            new ParameterImpl("argC", valueType, currentProgram),
+            new ParameterImpl("argX", valueType, currentProgram),
+            new ParameterImpl("argY", valueType, currentProgram));
     }
 
-    private void setRegisterAbi16(Function function, String convention) throws Exception {
+    private void setFunctionConvention(
+            Function function, String convention, DataType returnType) throws Exception {
         function.setCallingConvention(convention);
-        function.setReturnType(UnsignedShortDataType.dataType, SourceType.USER_DEFINED);
-        function.updateFunction(
-            convention,
-            null,
-            FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS,
-            true,
-            SourceType.USER_DEFINED,
-            new ParameterImpl("argC", UnsignedShortDataType.dataType, currentProgram),
-            new ParameterImpl("argX", UnsignedShortDataType.dataType, currentProgram),
-            new ParameterImpl("argY", UnsignedShortDataType.dataType, currentProgram));
+        function.setReturnType(returnType, SourceType.USER_DEFINED);
+    }
+
+    private void setVoidConvention(Function function, String convention) throws Exception {
+        setFunctionConvention(function, convention, VoidDataType.dataType);
     }
 
     private RegisterValue initialContextEmulation() {
@@ -189,78 +186,55 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function crossBankCallee =
                 functionAtOrCreate(crossBankCalleeAddress, "crossBankCallee");
 
-            setRegisterAbi(near, "__near");
-            setRegisterAbi(far, "__far");
-            setRegisterAbi16(near16, "__near");
-            setRegisterAbi16(far16, "__far");
-            setRegisterAbi(nearEmulation, "__near");
-            setRegisterAbi(farEmulation, "__far");
-            wrapper.setCallingConvention("__far");
-            wrapper.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            nestedCaller.setCallingConvention("__unknowncall");
-            nestedCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            stackDataCaller.setCallingConvention("__unknowncall");
-            stackDataCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            registerEffectsCaller.setCallingConvention("__unknowncall");
-            registerEffectsCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            registerEffectsCallee.setCallingConvention("__far");
-            registerEffectsCallee.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            statusEffectsCaller.setCallingConvention("__unknowncall");
-            statusEffectsCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            crossBankCaller.setCallingConvention("__unknowncall");
-            crossBankCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            crossBankCallee.setCallingConvention("__far");
-            crossBankCallee.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
-            emulationCaller.setCallingConvention("__unknowncall");
-            emulationCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            nearVoid.setCallingConvention("__near");
-            nearVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            farVoid.setCallingConvention("__far");
-            farVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            caller.setCallingConvention("__unknowncall");
-            caller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            caller16.setCallingConvention("__unknowncall");
-            caller16.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
-            callerVoid.setCallingConvention("__unknowncall");
-            callerVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            setRegisterAbi(near, "__near", UnsignedCharDataType.dataType);
+            setRegisterAbi(far, "__far", UnsignedCharDataType.dataType);
+            setRegisterAbi(near16, "__near", UnsignedShortDataType.dataType);
+            setRegisterAbi(far16, "__far", UnsignedShortDataType.dataType);
+            setRegisterAbi(nearEmulation, "__near", UnsignedCharDataType.dataType);
+            setRegisterAbi(farEmulation, "__far", UnsignedCharDataType.dataType);
+            setVoidConvention(wrapper, "__far");
+            setVoidConvention(registerEffectsCallee, "__far");
+            setVoidConvention(nearVoid, "__near");
+            setVoidConvention(farVoid, "__far");
+            setFunctionConvention(crossBankCallee, "__far", UnsignedCharDataType.dataType);
+            for (Function function : new Function[] {
+                    nestedCaller, stackDataCaller, registerEffectsCaller, statusEffectsCaller,
+                    crossBankCaller, emulationCaller, caller, caller16, callerVoid }) {
+                setVoidConvention(function, "__unknowncall");
+            }
 
-            out.println("near=" + near.getCallingConventionName());
-            out.println("far=" + far.getCallingConventionName());
-            out.println("near16=" + near16.getCallingConventionName());
-            out.println("far16=" + far16.getCallingConventionName());
-            out.println("nearVoid=" + nearVoid.getCallingConventionName());
-            out.println("farVoid=" + farVoid.getCallingConventionName());
-            out.println("nearEmu=" + nearEmulation.getCallingConventionName());
-            out.println("farEmu=" + farEmulation.getCallingConventionName());
-            out.println("nestedWrapper=" + wrapper.getCallingConventionName());
-            out.println("registerEffectsCallee=" + registerEffectsCallee.getCallingConventionName());
-            out.println("crossBankCallee=" + crossBankCallee.getCallingConventionName());
+            Function[] selectedFunctions = {
+                near, far, near16, far16, nearVoid, farVoid, nearEmulation, farEmulation,
+                wrapper, registerEffectsCallee, crossBankCallee
+            };
+            String[] selectedLabels = {
+                "near", "far", "near16", "far16", "nearVoid", "farVoid", "nearEmu",
+                "farEmu", "nestedWrapper", "registerEffectsCallee", "crossBankCallee"
+            };
+            for (int i = 0; i < selectedFunctions.length; i++) {
+                out.println(selectedLabels[i] + "=" + selectedFunctions[i].getCallingConventionName());
+            }
 
             DecompInterface decompiler = new DecompInterface();
             try {
                 if (!decompiler.openProgram(currentProgram)) {
                     throw new IllegalStateException("Decompiler could not open program");
                 }
-                decompileAndPrint(decompiler, caller, "caller", out);
-                decompileAndPrint(decompiler, near, "near", out);
-                decompileAndPrint(decompiler, far, "far", out);
-                decompileAndPrint(decompiler, caller16, "caller16", out);
-                decompileAndPrint(decompiler, near16, "near16", out);
-                decompileAndPrint(decompiler, far16, "far16", out);
-                decompileAndPrint(decompiler, callerVoid, "callerVoid", out);
-                decompileAndPrint(decompiler, nearVoid, "nearVoid", out);
-                decompileAndPrint(decompiler, farVoid, "farVoid", out);
-                decompileAndPrint(decompiler, nestedCaller, "nestedCaller", out);
-                decompileAndPrint(decompiler, wrapper, "nestedWrapper", out);
-                decompileAndPrint(decompiler, stackDataCaller, "stackDataCaller", out);
-                decompileAndPrint(decompiler, registerEffectsCaller, "registerEffectsCaller", out);
-                decompileAndPrint(decompiler, registerEffectsCallee, "registerEffectsCallee", out);
-                decompileAndPrint(decompiler, statusEffectsCaller, "statusEffectsCaller", out);
-                decompileAndPrint(decompiler, crossBankCaller, "crossBankCaller", out);
-                decompileAndPrint(decompiler, crossBankCallee, "crossBankCallee", out);
-                decompileAndPrint(decompiler, emulationCaller, "emulationCaller", out);
-                decompileAndPrint(decompiler, nearEmulation, "nearEmu", out);
-                decompileAndPrint(decompiler, farEmulation, "farEmu", out);
+                Function[] functions = {
+                    caller, near, far, caller16, near16, far16, callerVoid, nearVoid, farVoid,
+                    nestedCaller, wrapper, stackDataCaller, registerEffectsCaller,
+                    registerEffectsCallee, statusEffectsCaller, crossBankCaller,
+                    crossBankCallee, emulationCaller, nearEmulation, farEmulation
+                };
+                String[] labels = {
+                    "caller", "near", "far", "caller16", "near16", "far16", "callerVoid",
+                    "nearVoid", "farVoid", "nestedCaller", "nestedWrapper", "stackDataCaller",
+                    "registerEffectsCaller", "registerEffectsCallee", "statusEffectsCaller",
+                    "crossBankCaller", "crossBankCallee", "emulationCaller", "nearEmu", "farEmu"
+                };
+                for (int i = 0; i < functions.length; i++) {
+                    decompileAndPrint(decompiler, functions[i], labels[i], out);
+                }
             }
             finally {
                 decompiler.dispose();
