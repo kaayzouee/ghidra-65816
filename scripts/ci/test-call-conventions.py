@@ -37,8 +37,8 @@ ROM[0x0400:0x040D] = bytes.fromhex(
     "8d 26 03 8e 28 03 8c 2a 03 a9 de bc 6b"
 )
 
-# Void callees deliberately overwrite the accumulator. A caller must not keep
-# treating the pre-call accumulator value as live across either call.
+# Void callees deliberately overwrite A/X/Y. The caller must not keep the
+# pre-call accumulator or index-register values live across either call.
 ROM[0x0060:0x0086] = bytes.fromhex(
     "a9 11 a2 22 a0 33 20 00 85 "
     "8d 08 03 8e 0a 03 8c 0b 03 "
@@ -161,6 +161,22 @@ def main() -> None:
 
         if "near_void(" not in caller_void or "far_void(" not in caller_void:
             raise AssertionError("Void callees missing from caller decompilation:\n" + caller_void)
+        # Verify that every post-call store uses the value returned by the
+        # clobber model, rather than merely checking that the calls are present.
+        expected_clobbers = (
+            "0x308) = extraout_A",
+            "0x30a) = extraout_XLow",
+            "0x30b) = extraout_YLow",
+            "0x309) = extraout_A_00",
+            "0x30c) = extraout_XLow_00",
+            "0x30d) = extraout_YLow_00",
+        )
+        for fragment in expected_clobbers:
+            if fragment not in caller_void:
+                raise AssertionError(
+                    f"Expected post-call clobbered value {fragment!r}:\\n{caller_void}"
+                )
+
         # Void callees overwrite A/X/Y; stale pre-call values must not survive.
         stale_stores = (
             ("0x308)", "0x11"), ("0x30a)", "0x22"), ("0x30b)", "0x33"),
