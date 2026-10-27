@@ -11,8 +11,13 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.Timeout;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -806,6 +811,90 @@ class PcodeEmulatorRegressionTest {
             "Relative long branches wrap the 16-bit PC without carrying into PBR");
         assertEquals(run.space().getAddress(0x12fffe), run.thread().getCounter(),
             "BRL must remain in the original program bank after the 16-bit PC wraps");
+    }
+
+
+    @TestFactory
+    @EnabledIfEnvironmentVariable(named = "SINGLESTEP_FIXTURE", matches = ".+")
+    Stream<DynamicTest> pinnedSingleStepSubsetMatchesProcessorStateAndMemory() throws Exception {
+        Path fixturePath = Path.of(System.getenv("SINGLESTEP_FIXTURE"));
+        JsonArray tests;
+        try (Reader reader = Files.newBufferedReader(fixturePath)) {
+            tests = JsonParser.parseReader(reader).getAsJsonArray();
+        }
+        return StreamSupport.stream(tests.spliterator(), false).map(element -> {
+            JsonObject fixture = element.getAsJsonObject();
+            return DynamicTest.dynamicTest(fixture.get("name").getAsString(),
+                () -> assertSingleStepCorpusCase(fixture));
+        });
+    }
+
+    private void assertSingleStepCorpusCase(JsonObject fixture) throws Exception {
+        String name = fixture.get("name").getAsString();
+        JsonObject initial = fixture.getAsJsonObject("initial");
+        JsonObject expected = fixture.getAsJsonObject("final");
+        long codeAddress = (initial.get("pbr").getAsLong() << 16)
+            | initial.get("pc").getAsLong();
+        Run run = startAt(codeAddress);
+
+        for (JsonElement entry : initial.getAsJsonArray("ram")) {
+            JsonArray pair = entry.getAsJsonArray();
+            writeMemory(run, pair.get(0).getAsLong(),
+                new byte[] {(byte) pair.get(1).getAsInt()});
+        }
+
+        long status = initial.get("p").getAsLong();
+        long emulation = initial.get("e").getAsLong();
+        writeRegister(run, "PC", initial.get("pc").getAsLong());
+        writeRegister(run, "PBR", initial.get("pbr").getAsLong());
+        writeRegister(run, "C", initial.get("a").getAsLong());
+        // The reference corpus can supply arbitrary high bytes in registers that the CPU
+        // constrains in the selected mode. Apply those hardware invariants before stepping;
+        // compare against the reference's final state without normalizing it.
+        boolean x8 = emulation == 1 || ((status >> 4) & 1) == 1;
+        long indexMask = x8 ? 0xff : 0xffff;
+        writeRegister(run, "X", initial.get("x").getAsLong() & indexMask);
+        writeRegister(run, "Y", initial.get("y").getAsLong() & indexMask);
+        writeRegister(run, "DBR", initial.get("dbr").getAsLong());
+        writeRegister(run, "DP", initial.get("d").getAsLong());
+        long initialStack = initial.get("s").getAsLong();
+        writeRegister(run, "SP",
+            emulation == 1 ? 0x100 | (initialStack & 0xff) : initialStack);
+        writeRegister(run, "NF", (status >> 7) & 1);
+        writeRegister(run, "VF", (status >> 6) & 1);
+        writeRegister(run, "DF", (status >> 3) & 1);
+        writeRegister(run, "IF", (status >> 2) & 1);
+        writeRegister(run, "ZF", (status >> 1) & 1);
+        writeRegister(run, "CF", status & 1);
+        setContextBit(run, "ctx_EF", emulation);
+        setContextBit(run, "ctx_MF", emulation == 1 ? 1 : (status >> 5) & 1);
+        setContextBit(run, "ctx_XF", emulation == 1 ? 1 : (status >> 4) & 1);
+        run.thread().overrideCounter(run.space().getAddress(codeAddress));
+
+        executeOne(run);
+
+        assertEquals(expected.get("pc").getAsLong(), readRegister(run, "PC"), name + " PC");
+        assertEquals(expected.get("pbr").getAsLong(), readRegister(run, "PBR"), name + " PBR");
+        assertEquals(expected.get("a").getAsLong(), readRegister(run, "C"), name + " accumulator");
+        assertEquals(expected.get("x").getAsLong(), readRegister(run, "X"), name + " X");
+        assertEquals(expected.get("y").getAsLong(), readRegister(run, "Y"), name + " Y");
+        assertEquals(expected.get("dbr").getAsLong(), readRegister(run, "DBR"), name + " DBR");
+        assertEquals(expected.get("d").getAsLong(), readRegister(run, "DP"), name + " direct page");
+        assertEquals(expected.get("s").getAsLong(), readRegister(run, "SP"), name + " stack pointer");
+        long expectedStatus = expected.get("p").getAsLong();
+        assertEquals((expectedStatus >> 7) & 1, readRegister(run, "NF"), name + " N");
+        assertEquals((expectedStatus >> 6) & 1, readRegister(run, "VF"), name + " V");
+        assertEquals((expectedStatus >> 3) & 1, readRegister(run, "DF"), name + " D");
+        assertEquals((expectedStatus >> 2) & 1, readRegister(run, "IF"), name + " I");
+        assertEquals((expectedStatus >> 1) & 1, readRegister(run, "ZF"), name + " Z");
+        assertEquals(expectedStatus & 1, readRegister(run, "CF"), name + " C flag");
+
+        for (JsonElement entry : expected.getAsJsonArray("ram")) {
+            JsonArray pair = entry.getAsJsonArray();
+            assertEquals(pair.get(1).getAsLong(),
+                readMemory(run, pair.get(0).getAsLong(), 1),
+                name + " RAM at 0x" + Long.toHexString(pair.get(0).getAsLong()));
+        }
     }
 
 }

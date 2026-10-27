@@ -85,4 +85,21 @@ propagation in analysis.
 
 ## SingleStepTests adapter
 
-The runtime suite contains the compact `3d e 1` state/memory fixture published in the [SingleStepTests/65816 README](https://github.com/SingleStepTests/65816#sample-test). `PcodeEmulatorRegressionTest` loads the fixture's initial RAM and CPU state, executes one instruction, then compares architecturally relevant final registers, flags, and listed memory bytes. This is a smoke test of the adapter, not full corpus coverage or bus-cycle validation. The fixture attribution and upstream MIT licence are included in `src/test/resources/singlestep/README.md` and `src/test/resources/singlestep/LICENCE`. Keep PR CI bounded; broader upstream corpus runs should be an opt-in or scheduled job.
+The runtime suite contains the compact `3d e 1` state/memory fixture published in the [SingleStepTests/65816 README](https://github.com/SingleStepTests/65816#sample-test), plus a bounded subset fetched from a pinned upstream commit during CI. `PcodeEmulatorRegressionTest` loads each case's initial RAM and CPU state, executes one instruction, then compares PC/PBR, accumulator, index registers, DBR/DP, stack pointer, the six live status flags, and listed final RAM bytes. The bounded subset covers ADC immediate, LDA immediate, PHA, PLA, STA absolute, and LDA direct-page-indirect-long indexed by Y, in both emulation and native modes (10 cases per opcode/mode). For corpus cases, the adapter normalizes the stack pointer to page 1 in emulation mode and clears high index-register bytes when the X flag selects 8-bit indexes, then compares the final state against the corpus values. This normalization is based on the constrained CPU state observed in the fetched corpus cases; the separate README smoke fixture remains a direct state-transition test of its published sample. This is state-transition regression coverage, not full corpus coverage or cycle-level bus validation. The fixture attribution and upstream MIT licence are included in `src/test/resources/singlestep/README.md` and `src/test/resources/singlestep/LICENCE`. The CI subset fetcher is `scripts/ci/fetch-singlestep-subset.py`; broader corpus runs remain suitable for an opt-in or scheduled job.
+
+## Full SingleStepTests corpus (maintainers only)
+
+The separate `.github/workflows/singlestep-full.yml` workflow is manually dispatched and runs
+the first 50 cases for every opcode in both emulation and native modes (25,600 cases total) from
+the same pinned upstream corpus revision. It verifies the generated case count, runs the same
+P-code emulator regression tests, and uploads test reports as an Actions artifact. This is a
+longer diagnostic run; ordinary pull-request CI remains limited to the 120-case subset.
+
+**Important: the workflow file alone does not enforce maintainer-only access.** Before relying on
+that restriction, a repository administrator must configure a GitHub Actions workflow execution
+protection under **Settings → Actions → Policies** targeting only
+`.github/workflows/singlestep-full.yml`. Allow actors with the repository **Maintain** or
+**Admin** role and allow only the `workflow_dispatch` event. Owners with Admin access are
+included. Do not rely on a YAML-only actor check: manual dispatch can select another branch, and
+the workflow file on that branch could be modified. GitHub's central execution policy is the
+enforcement boundary. See [GitHub's workflow execution protection documentation](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).

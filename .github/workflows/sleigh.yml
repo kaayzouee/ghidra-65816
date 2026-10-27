@@ -80,7 +80,12 @@ jobs:
         with:
           gradle-version: "8.5"
 
+      - name: Fetch bounded SingleStepTests subset
+        run: python scripts/ci/fetch-singlestep-subset.py build/singlestep/subset.json 10
+
       - name: Run P-code emulator tests
+        env:
+          SINGLESTEP_FIXTURE: build/singlestep/subset.json
         run: gradle --no-daemon test --info --stacktrace
 
       - name: Upload runtime-test diagnostics
