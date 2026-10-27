@@ -98,6 +98,26 @@ def main() -> None:
         if "return 'U'" not in far:
             raise AssertionError("Far function return value was not recovered:\n" + far)
 
+        # JSR pushes high/low return bytes; JSL pushes bank/high/low bytes.
+        # The next call must reuse the caller's stack baseline after the first
+        # callee returns. The stack variable names expose an unexpected residual
+        # stack shift even when Ghidra's output still contains BADSPACEBASE.
+        stack_writes = []
+        stack_locations = []
+        for line in caller.splitlines():
+            if ("&stack0x" in line or "&uStack_" in line) and " = " in line:
+                stack_writes.append(line.rsplit(" = ", 1)[1].rstrip(";").strip())
+                stack_locations.append(line.split("&", 1)[1].split(")", 1)[0])
+        expected_values = ["0x80", "8", "0", "0x80", "0x15"]
+        expected_locations = [
+            "stack0x0000", "uStack_1", "stack0x0000", "uStack_1", "uStack_2"
+        ]
+        if stack_writes != expected_values or stack_locations != expected_locations:
+            raise AssertionError(
+                "Unexpected call return-address stack effects. "
+                f"writes={stack_writes}, locations={stack_locations}:\n{caller}"
+            )
+
         print("Near/far calling-convention regression passed.")
         print("=== caller ===")
         print(caller)
