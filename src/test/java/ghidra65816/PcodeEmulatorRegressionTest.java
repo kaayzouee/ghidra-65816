@@ -701,7 +701,6 @@ class PcodeEmulatorRegressionTest {
             writeMemory(run, pair.get(0).getAsLong(),
                 new byte[] {(byte) pair.get(1).getAsInt()});
         }
-        long opcode = readMemory(run, codeAddress, 1);
 
         long status = initial.get("p").getAsLong();
         long emulation = initial.get("e").getAsLong();
@@ -864,6 +863,8 @@ class PcodeEmulatorRegressionTest {
             writeMemory(run, pair.get(0).getAsLong(),
                 new byte[] {(byte) pair.get(1).getAsInt()});
         }
+        long opcode = readMemory(run, codeAddress, 1);
+
 
         long status = initial.get("p").getAsLong();
         long emulation = initial.get("e").getAsLong();
