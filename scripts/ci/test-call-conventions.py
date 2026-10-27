@@ -429,18 +429,21 @@ def main() -> None:
 
         # Cross-bank JSL/RTL must restore PBR to the caller's bank. The metadata
         # test covers the declaration; PHK/PLA makes the restored PBR observable.
-        if "crossBankCallee(" not in cross_bank_caller or "0x344" not in cross_bank_caller:
+        if "crossBankCallee();" not in cross_bank_caller or "0x344" not in cross_bank_caller:
             raise AssertionError(
-                "Cross-bank caller did not use the PBR observation store:\n"
+                "Cross-bank caller did not call the callee and store the observed PBR:\\n"
                 + cross_bank_caller
             )
         if "extraout_PBR" in cross_bank_caller:
             raise AssertionError(
-                "PBR is modeled as caller-clobbered after RTL:\n" + cross_bank_caller
+                "PBR is modeled as caller-clobbered after RTL:\\n" + cross_bank_caller
             )
-        if not any(name in cross_bank_caller for name in ("unaff_PBR", "in_PBR", "0x80")):
+        if not any(
+            line.strip().endswith("= in_PBR;")
+            for line in cross_bank_caller.splitlines()
+        ):
             raise AssertionError(
-                "Cross-bank call did not restore the caller's PBR value:\n"
+                "PHK/PLA after cross-bank RTL did not read the preserved caller PBR:\\n"
                 + cross_bank_caller
             )
 
