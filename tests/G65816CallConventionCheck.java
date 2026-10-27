@@ -11,15 +11,18 @@ import ghidra.program.model.data.VoidDataType;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.Function.FunctionUpdateType;
+import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.symbol.SourceType;
 
 public class G65816CallConventionCheck extends GhidraScript {
     private RegisterValue initialContext() {
         Register context = currentProgram.getLanguage().getContextBaseRegister();
         RegisterValue value = new RegisterValue(context);
-        for (String name : new String[] { "ctx_MF", "ctx_XF", "ctx_EF" }) {
-            value = value.assign(currentProgram.getLanguage().getRegister(name), BigInteger.ONE);
-        }
+        value = value.assign(currentProgram.getLanguage().getRegister("ctx_MF"), BigInteger.ONE);
+        value = value.assign(currentProgram.getLanguage().getRegister("ctx_XF"), BigInteger.ONE);
+        // Native mode with 8-bit accumulator and index registers.
+        value = value.assign(currentProgram.getLanguage().getRegister("ctx_EF"), BigInteger.ZERO);
         return value;
     }
 
@@ -46,6 +49,21 @@ public class G65816CallConventionCheck extends GhidraScript {
         return function;
     }
 
+    private void setRegisterAbi(Function function, String convention, String returnConstant)
+            throws Exception {
+        function.setCallingConvention(convention);
+        function.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
+        function.updateFunction(
+            convention,
+            null,
+            FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS,
+            true,
+            SourceType.USER_DEFINED,
+            new ParameterImpl("argC", UnsignedCharDataType.dataType, currentProgram),
+            new ParameterImpl("argX", UnsignedCharDataType.dataType, currentProgram),
+            new ParameterImpl("argY", UnsignedCharDataType.dataType, currentProgram));
+    }
+
     @Override
     protected void run() throws Exception {
         String[] args = getScriptArgs();
@@ -63,10 +81,8 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function near = functionAtOrCreate(nearAddress, "near_fn");
             Function far = functionAtOrCreate(farAddress, "far_fn");
 
-            near.setCallingConvention("__near");
-            near.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
-            far.setCallingConvention("__far");
-            far.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
+            setRegisterAbi(near, "__near", "0x44");
+            setRegisterAbi(far, "__far", "0x55");
             caller.setCallingConvention("__unknowncall");
             caller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
 
@@ -78,17 +94,25 @@ public class G65816CallConventionCheck extends GhidraScript {
                 if (!decompiler.openProgram(currentProgram)) {
                     throw new IllegalStateException("Decompiler could not open program");
                 }
-                DecompileResults result = decompiler.decompileFunction(caller, 30, monitor);
-                if (!result.decompileCompleted()) {
-                    throw new IllegalStateException(
-                        "Caller decompilation failed: " + result.getErrorMessage());
-                }
-                out.println("=== caller decompile ===");
-                out.println(result.getDecompiledFunction().getC());
+                decompileAndPrint(decompiler, caller, "caller", out);
+                decompileAndPrint(decompiler, near, "near", out);
+                decompileAndPrint(decompiler, far, "far", out);
             }
             finally {
                 decompiler.dispose();
             }
         }
+    }
+
+    private void decompileAndPrint(
+            DecompInterface decompiler, Function function, String label, PrintStream out)
+            throws Exception {
+        DecompileResults result = decompiler.decompileFunction(function, 30, monitor);
+        if (!result.decompileCompleted()) {
+            throw new IllegalStateException(
+                function.getName() + " decompilation failed: " + result.getErrorMessage());
+        }
+        out.println("=== " + label + " decompile ===");
+        out.println(result.getDecompiledFunction().getC());
     }
 }
