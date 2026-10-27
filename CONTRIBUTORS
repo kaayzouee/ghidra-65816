@@ -24,3 +24,5 @@ COMMIT:  aleph-void/ghidra-65816/commit/387a4eee7335137dcdf48b234a07048119d844d4
 NOTE(S): Broader changes from this commit are not included.
 COMMIT:  aleph-void/ghidra-65816/commit/7b340b771a6c84fff824361e7beaf0802ed318dc
 NOTE(S): Core WAI/STP control-flow changes ported. Other changes adapted/omitted.
+COMMIT:  aleph-void/ghidra-65816/commit/7985af33a5168363e9158a34f41d92f63ea3990b
+NOTE(S): Core direct-control-flow fix ported. Comments and commit message shortened.
