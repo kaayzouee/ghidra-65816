@@ -11,7 +11,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 # Base address is 0x808000 (bank $80). The caller passes values in A/C, X, and Y,
 # calls $8100 with JSR and $808200 with JSL, then stores each return value.
-ROM = bytearray([0xEA] * 0xC00)
+ROM = bytearray([0xEA] * 0xD00)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
     "a9 42 a2 05 a0 06 22 00 82 80 8d 01 03 60"
@@ -78,6 +78,16 @@ ROM[0x0B00:0x0B16] = bytes.fromhex(
     "a9 22 48 20 00 81 68 8d 25 03 60"
 )
 
+# A void far callee deliberately changes DP, DBR, and status flags. Its caller
+# uses direct-page and DBR-relative addressing, then branches on ZF after JSL.
+ROM[0x0C00:0x0C1A] = bytes.fromhex(
+    "a9 11 22 80 8c 80 85 10 8d 34 12 d0 07 "
+    "a9 11 8d 40 03 80 05 a9 22 8d 41 03 6b"
+)
+ROM[0x0C80:0x0C91] = bytes.fromhex(
+    "c2 20 a9 34 12 5b e2 20 4b ab 38 f8 78 b8 a9 00 6b"
+)
+
 
 def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
     values: list[int] = []
@@ -138,6 +148,7 @@ def main() -> None:
             "near=__near", "far=__far", "near16=__near", "far16=__far",
             "nearVoid=__near", "farVoid=__far",
             "nearEmu=__near", "farEmu=__far", "nestedWrapper=__far",
+            "registerEffectsCallee=__far",
         ):
             if marker not in result:
                 raise AssertionError("Functions did not retain selected conventions:\n" + result)
@@ -177,9 +188,15 @@ def main() -> None:
         nested_wrapper = result.partition("=== nestedWrapper decompile ===\n")[2].partition(
             "=== stackDataCaller decompile ===\n"
         )[0]
-        stack_data_caller = result.partition("=== stackDataCaller decompile ===\n")[2].partition(
-            "=== emulationCaller decompile ===\n"
+        stack_data_caller = result.partition("=== stackDataCaller decompile ===\\n")[2].partition(
+            "=== registerEffectsCaller decompile ===\\n"
         )[0]
+        register_effects_caller = result.partition(
+            "=== registerEffectsCaller decompile ===\\n"
+        )[2].partition("=== registerEffectsCallee decompile ===\\n")[0]
+        register_effects_callee = result.partition(
+            "=== registerEffectsCallee decompile ===\\n"
+        )[2].partition("=== emulationCaller decompile ===\\n")[0]
         emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
             "=== nearEmu decompile ===\n"
         )[0]
@@ -189,7 +206,8 @@ def main() -> None:
         far_emu = result.partition("=== farEmu decompile ===\n")[2]
         if not all((
             caller, near, far, caller16, near16, far16, caller_void, near_void, far_void,
-            nested_caller, nested_wrapper, stack_data_caller, emulation_caller, near_emu, far_emu
+            nested_caller, nested_wrapper, stack_data_caller, register_effects_caller,
+            register_effects_callee, emulation_caller, near_emu, far_emu
         )):
             raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
 
@@ -333,6 +351,33 @@ def main() -> None:
                     + stack_data_caller
                 )
 
+        # The far void callee's convention promises that DP, DBR, and all
+        # modeled status flags may be clobbered. Ghidra must not reuse their
+        # pre-call values when deriving the caller's effective addresses/branch.
+        if "extraout_DP" not in register_effects_caller:
+            raise AssertionError(
+                "Direct-page store did not use the caller-clobbered DP value:\\n"
+                + register_effects_caller
+            )
+        if not any(
+            "extraout_DBR" in line and "0x1234" in line
+            for line in register_effects_caller.splitlines()
+        ):
+            raise AssertionError(
+                "Absolute store did not use the caller-clobbered DBR value:\\n"
+                + register_effects_caller
+            )
+        if "extraout_ZF" not in register_effects_caller:
+            raise AssertionError(
+                "BNE after the call did not use a caller-clobbered ZF value:\\n"
+                + register_effects_caller
+            )
+        if "void registerEffectsCallee(void)" not in register_effects_callee:
+            raise AssertionError(
+                "Register-effect callee did not decompile as a void function:\\n"
+                + register_effects_callee
+            )
+
         # Emulation mode is a separate context, not just another native-mode
         # caller. Verify argument/return recovery and the JSR/JSL stack bytes.
         for name in ("near_emu_fn(", "far_emu_fn("):
@@ -402,6 +447,10 @@ def main() -> None:
         print(nested_wrapper)
         print("=== stackDataCaller ===")
         print(stack_data_caller)
+        print("=== registerEffectsCaller ===")
+        print(register_effects_caller)
+        print("=== registerEffectsCallee ===")
+        print(register_effects_callee)
         print("=== emulationCaller ===")
         print(emulation_caller)
         print("=== nearEmu ===")
