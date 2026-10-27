@@ -14,4 +14,81 @@
       <output/>
     </prototype>
   </default_proto>
+
+  <!-- Optional conventions; assign manually only when the binary follows this register ABI. -->
+  <prototype name="__near" extrapop="2" stackshift="2" strategy="register">
+    <input>
+      <pentry minsize="1" maxsize="2">
+        <register name="C"/>
+      </pentry>
+      <pentry minsize="1" maxsize="2">
+        <register name="X"/>
+      </pentry>
+      <pentry minsize="1" maxsize="2">
+        <register name="Y"/>
+      </pentry>
+    </input>
+    <output killedbycall="true">
+      <pentry minsize="1" maxsize="2">
+        <register name="C"/>
+      </pentry>
+    </output>
+    <unaffected>
+      <register name="SP"/>
+      <register name="PBR"/>
+    </unaffected>
+    <killedbycall>
+      <register name="X"/>
+      <register name="Y"/>
+      <register name="DP"/>
+      <register name="DBR"/>
+      <register name="NF"/>
+      <register name="VF"/>
+      <register name="DF"/>
+      <register name="IF"/>
+      <register name="ZF"/>
+      <register name="CF"/>
+      <register name="BF"/>
+    </killedbycall>
+  </prototype>
+
+  <prototype name="__far" extrapop="3" stackshift="3" strategy="register">
+    <input>
+      <pentry minsize="1" maxsize="2">
+        <register name="C"/>
+      </pentry>
+      <pentry minsize="1" maxsize="2">
+        <register name="X"/>
+      </pentry>
+      <pentry minsize="1" maxsize="2">
+        <register name="Y"/>
+      </pentry>
+    </input>
+    <output killedbycall="true">
+      <pentry minsize="1" maxsize="2">
+        <register name="C"/>
+      </pentry>
+    </output>
+    <!-- JSL/RTL pushes/pulls a 3-byte return address. -->
+    <returnaddress>
+      <varnode space="stack" offset="1" size="3"/>
+    </returnaddress>
+    <unaffected>
+      <register name="SP"/>
+      <register name="PBR"/>
+    </unaffected>
+    <killedbycall>
+      <register name="X"/>
+      <register name="Y"/>
+      <register name="DP"/>
+      <register name="DBR"/>
+      <register name="NF"/>
+      <register name="VF"/>
+      <register name="DF"/>
+      <register name="IF"/>
+      <register name="ZF"/>
+      <register name="CF"/>
+      <register name="BF"/>
+    </killedbycall>
+  </prototype>
 </compiler_spec>
