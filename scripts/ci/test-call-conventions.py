@@ -11,7 +11,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 # Base address is 0x808000 (bank $80). The caller passes values in A/C, X, and Y,
 # calls $8100 with JSR and $808200 with JSL, then stores each return value.
-ROM = bytearray([0xEA] * 0x500)
+ROM = bytearray([0xEA] * 0x700)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
     "a9 42 a2 05 a0 06 22 00 82 80 8d 01 03 60"
@@ -36,6 +36,14 @@ ROM[0x0300:0x030D] = bytes.fromhex(
 ROM[0x0400:0x040D] = bytes.fromhex(
     "8d 26 03 8e 28 03 8c 2a 03 a9 de bc 6b"
 )
+
+# Void callees deliberately overwrite the accumulator. A caller must not keep
+# treating the pre-call accumulator value as live across either call.
+ROM[0x0060:0x0072] = bytes.fromhex(
+    "a9 11 20 00 85 8d 08 03 a9 22 22 00 86 80 8d 09 03 60"
+)
+ROM[0x0500:0x0503] = bytes.fromhex("a9 44 60")
+ROM[0x0600:0x0603] = bytes.fromhex("a9 55 6b")
 
 
 def main() -> None:
