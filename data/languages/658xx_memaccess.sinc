@@ -50,44 +50,44 @@ macro flag16_NZ(_acc) {
 }
 
 macro push8_native(_val8) {
-    local value:1 = _val8;
+    local p8_val:1 = _val8;
     local sp:3 = zext(SP);
-    *:1 sp = value;
+    *:1 sp = p8_val;
 
     SP = SP - 1;
 }
 
 macro push8_emulation(_val8) {
-    local value:1 = _val8;
+    local p8_val:1 = _val8;
     local sp:3 = zext(SP);
-    *:1 sp = value;
+    *:1 sp = p8_val;
 
     SPLow = SPLow - 1;
 }
 
 macro push16_native(_val16) {
-    local value:2 = _val16;
+    local p16_val:2 = _val16;
 
     # High byte, low byte.
-    push8_native(value(1));
-    push8_native(value:1);
+    push8_native(p16_val(1));
+    push8_native(p16_val:1);
 }
 
 macro push16_emulation(_val16) {
-    local value:2 = _val16;
+    local p16_val:2 = _val16;
 
     # High byte, low byte.
-    push8_emulation(value(1));
-    push8_emulation(value:1);
+    push8_emulation(p16_val(1));
+    push8_emulation(p16_val:1);
 }
 
 macro push24_native(_val24) {
-    local value:3 = _val24;
+    local p24_val:3 = _val24;
 
     # High byte, mid byte, low byte.
-    push8_native(value(2));
-    push8_native(value(1));
-    push8_native(value:1);
+    push8_native(p24_val(2));
+    push8_native(p24_val(1));
+    push8_native(p24_val:1);
 }
 
 macro pull8_native(var8) {
@@ -103,41 +103,36 @@ macro pull8_emulation(var8) {
 }
 
 macro pull16_native(var16) {
-    local temp:2;
-    local temp8:1;
+    local lo8:1;
+    local hi8:1;
 
-    # Low byte.
-    pull8_native(temp8);
-    temp[0,8] = temp8;
+    # Low byte, then high byte. Assemble with shifts to avoid partial writes into a 2-byte local.
+    pull8_native(lo8);
+    pull8_native(hi8);
 
-    # High byte.
-    pull8_native(temp8);
-    temp[8,8] = temp8;
-
-    var16 = temp;
+    var16 = (zext(hi8) << 8) | zext(lo8);
 }
 
 macro pull16_emulation(var16) {
-    local temp:2;
-    local temp8:1;
+    local lo8:1;
+    local hi8:1;
 
-    # Low byte.
-    pull8_emulation(temp8);
-    temp[0,8] = temp8;
+    # Low byte, then high byte. Assemble with shifts to avoid partial writes into a 2-byte local.
+    pull8_emulation(lo8);
+    pull8_emulation(hi8);
 
-    # High byte.
-    pull8_emulation(temp8);
-    temp[8,8] = temp8;
-
-    var16 = temp;
+    var16 = (zext(hi8) << 8) | zext(lo8);
 }
 
-macro push_status_native() {
-    local status:1;
+# _mf/_xf are decode-time context flags supplied by the calling constructor.
+macro push_status_native(_mf, _xf) {
+    local status:1 = 0;
+    local mf:1 = _mf;
+    local xf:1 = _xf;
     status[7,1] = NF;
     status[6,1] = VF;
-    status[5,1] = $(MF);
-    status[4,1] = $(XF);
+    status[5,1] = mf;
+    status[4,1] = xf;
     status[3,1] = DF;
     status[2,1] = IF;
     status[1,1] = ZF;
@@ -286,10 +281,11 @@ macro read_stack(_out, _offset32) {
 # Get the address of a byte at some big offset from the start of the direct page, taking wrapping
 # into account.
 # Additional (more restrictive) wrapping may occur in emulation mode under certain circumstances.
-macro ref_direct(_out, _offset32) {
+macro ref_direct(_out, _offset32, _ef) {
     local _offset:4 = _offset32;
     local address:3;
-    if (($(EF) == 1) && (DPLow == 0)) goto <emu_read_direct>;
+    local is_emu:1 = _ef;
+    if ((is_emu == 1) && (DPLow == 0)) goto <emu_read_direct>;
 
     # <not_emu_read_direct>
     # Quote from manual p58:
@@ -320,9 +316,9 @@ macro ref_direct(_out, _offset32) {
 
 # Read a byte at some big offset from the start of the direct page, taking wrapping into account.
 # Additional (more restrictive) wrapping may occur in emulation mode under certain circumstances.
-macro read_direct(_out, _offset32) {
+macro read_direct(_out, _offset32, _ef) {
     local address:3;
-    ref_direct(address, _offset32);
+    ref_direct(address, _offset32, _ef);
     _out = *:1 address;
 }
 
@@ -442,42 +438,42 @@ RefAbsLongIdxX: !>$imm24,"X"    is imm24 & IdxX  {
 
 # Direct page.
 # DP access may wrap in emulation mode.
-RefDP: <$imm8    is imm8  {
+RefDP: <$imm8    is imm8 & (ctx_EF=0 | ctx_EF=1) {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8);
-    local ref_lo:3; ref_direct(ref_lo, offset);
-    local ref_hi:3; ref_direct(ref_hi, offset + 1);
+    local ref_lo:3; ref_direct(ref_lo, offset, ctx_EF);
+    local ref_hi:3; ref_direct(ref_hi, offset + 1, ctx_EF);
     $(REF_EXPORT);
 }
 
 # Direct page indexed by X.
 # DP access may wrap in emulation mode.
-RefDPIdxX: <$imm8,"X"    is imm8 & IdxX  {
+RefDPIdxX: <$imm8,"X"    is imm8 & IdxX & (ctx_EF=0 | ctx_EF=1) {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8) + zext(IdxX);
-    local ref_lo:3; ref_direct(ref_lo, offset);
-    local ref_hi:3; ref_direct(ref_hi, offset + 1);
+    local ref_lo:3; ref_direct(ref_lo, offset, ctx_EF);
+    local ref_hi:3; ref_direct(ref_hi, offset + 1, ctx_EF);
     $(REF_EXPORT);
 }
 
 # Direct page indexed by Y.
 # DP access may wrap in emulation mode.
-RefDPIdxY: <$imm8,"Y"    is imm8 & IdxY  {
+RefDPIdxY: <$imm8,"Y"    is imm8 & IdxY & (ctx_EF=0 | ctx_EF=1) {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8) + zext(IdxY);
-    local ref_lo:3; ref_direct(ref_lo, offset);
-    local ref_hi:3; ref_direct(ref_hi, offset + 1);
+    local ref_lo:3; ref_direct(ref_lo, offset, ctx_EF);
+    local ref_hi:3; ref_direct(ref_hi, offset + 1, ctx_EF);
     $(REF_EXPORT);
 }
 
 # Direct page indexed by X, indirect.
 # DP access may wrap in emulation mode.
-RefDPIdxInd: (<$imm8,"X")    is imm8 & IdxX  {
+RefDPIdxInd: (<$imm8,"X")    is imm8 & IdxX & (ctx_EF=0 | ctx_EF=1) {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8) + zext(IdxX);
 
-    local ind_lo:1; read_direct(ind_lo, offset);
-    local ind_hi:1; read_direct(ind_hi, offset + 1);
+    local ind_lo:1; read_direct(ind_lo, offset, ctx_EF);
+    local ind_hi:1; read_direct(ind_hi, offset + 1, ctx_EF);
     local ind:2; pack_lo_hi(ind, ind_lo, ind_hi);
 
     offset = zext(ind);
@@ -488,12 +484,12 @@ RefDPIdxInd: (<$imm8,"X")    is imm8 & IdxX  {
 
 # Direct page indirect.
 # DP access may wrap in emulation mode.
-RefDPInd: (<$imm8)    is imm8  {
+RefDPInd: (<$imm8)    is imm8 & (ctx_EF=0 | ctx_EF=1) {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8);
 
-    local ind_lo:1; read_direct(ind_lo, offset);
-    local ind_hi:1; read_direct(ind_hi, offset + 1);
+    local ind_lo:1; read_direct(ind_lo, offset, ctx_EF);
+    local ind_hi:1; read_direct(ind_hi, offset + 1, ctx_EF);
     local ind:2; pack_lo_hi(ind, ind_lo, ind_hi);
 
     offset = zext(ind);
@@ -519,12 +515,12 @@ RefDPIndLong: [<$imm8]    is imm8  {
 
 # Direct page indirect, indexed by Y.
 # DP access may wrap in emulation mode.
-RefDPIndIdx: (<$imm8),"Y"    is imm8 & IdxY  {
+RefDPIndIdx: (<$imm8),"Y"    is imm8 & IdxY & (ctx_EF=0 | ctx_EF=1) {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8);
 
-    local ind_lo:1; read_direct(ind_lo, offset);
-    local ind_hi:1; read_direct(ind_hi, offset + 1);
+    local ind_lo:1; read_direct(ind_lo, offset, ctx_EF);
+    local ind_hi:1; read_direct(ind_hi, offset + 1, ctx_EF);
     local ind:2; pack_lo_hi(ind, ind_lo, ind_hi);
 
     offset = zext(ind) + zext(IdxY);
