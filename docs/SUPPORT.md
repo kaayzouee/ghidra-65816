@@ -18,6 +18,14 @@ This repository implements the WDC W65C816S language and instruction-level P-cod
 
 Instruction-byte and fall-through wrapping at the end of a program bank also remain limitations; see the [roadmap](limitations-roadmap.md).
 
+## Optional calling conventions
+
+The default call model remains `__unknowncall`. The optional `__near` and `__far` models are not selected automatically by `JSR` or `JSL`; users must assign them to functions that follow this example register convention.
+
+These models assume `C`, `X`, and `Y` can carry inputs, `C` carries a result, `SP` is preserved, and `X`, `Y`, `DP`, `DBR`, and status flags may be clobbered. This is a selectable convention, not a universal 65816 ABI. It does not describe stack-passed arguments.
+
+The global return-address annotation remains two bytes. The far model's three-byte stack shift therefore still needs a headless `JSL`/`RTL` decompilation regression before its stack effects can be considered verified.
+
 ## When is a limitation fixed?
 
 Require a regression or repeatable fixture that fails before the change, a relevant CPU reference, and validation with the Ghidra version pinned in CI. Compilation alone is not sufficient.
