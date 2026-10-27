@@ -125,10 +125,11 @@ def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
         locations.append(left.split("&", 1)[1].split(")", 1)[0])
     return values, locations
 
+
 def require_fragments(source: str, fragments: tuple[str, ...], context: str) -> None:
     missing = [fragment for fragment in fragments if fragment not in source]
     if missing:
-        raise AssertionError(f"{context}: missing {missing!r}\\n{source}")
+        raise AssertionError(f"{context}: missing {missing!r}\n{source}")
 
 
 def assert_stack_effects(
@@ -140,7 +141,7 @@ def assert_stack_effects(
     values, locations = extract_stack_writes(source)
     if values != expected_values or locations != list(expected_locations):
         raise AssertionError(
-            f"{context}: writes={values}, locations={locations}\\n{source}"
+            f"{context}: writes={values}, locations={locations}\n{source}"
         )
 
 
