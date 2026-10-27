@@ -11,7 +11,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 # Base address is 0x8000. The caller passes values in A/C, X, and Y,
 # calls $8100 with JSR and $008200 with JSL, then stores each return value.
-ROM = bytearray([0xEA] * 0x300)
+ROM = bytearray([0xEA] * 0x500)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
     "a9 42 a2 05 a0 06 22 00 82 00 8d 01 03 60"
@@ -22,6 +22,19 @@ ROM[0x0100:0x010C] = bytes.fromhex(
 )
 ROM[0x0200:0x020C] = bytes.fromhex(
     "8d 05 03 8e 06 03 8c 07 03 a9 55 6b"
+)
+
+# A second caller switches to 16-bit accumulator/index widths with REP #$30.
+# This exercises the two-byte pentry paths as well as the one-byte paths above.
+ROM[0x0020:0x0042] = bytes.fromhex(
+    "c2 30 a9 34 12 a2 45 23 a0 56 34 20 00 83 8d 10 03 "
+    "a9 67 45 a2 78 56 a0 89 67 22 00 84 00 8d 12 03 60"
+)
+ROM[0x0300:0x030D] = bytes.fromhex(
+    "8d 20 03 8e 22 03 8c 24 03 a9 9a 78 60"
+)
+ROM[0x0400:0x040D] = bytes.fromhex(
+    "8d 26 03 8e 28 03 8c 2a 03 a9 de bc 6b"
 )
 
 
