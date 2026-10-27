@@ -349,12 +349,32 @@ def main() -> None:
             raise AssertionError("Emulation near return value was not recovered:\n" + near_emu)
         if "return 'U'" not in far_emu:
             raise AssertionError("Emulation far return value was not recovered:\n" + far_emu)
-        emu_values, emu_locations = extract_stack_writes(emulation_caller)
-        expected_emu_values = [0x87, 8, 0x80, 0x87, 0x15]
-        if emu_values != expected_emu_values or emu_locations != expected_locations_near_then_far:
+        # In emulation mode, S is constrained to page one. Unlike native
+        # mode, the decompiler represents the wrapped SP addresses as computed
+        # bus addresses rather than a sequence of uStack_N locals. Check the
+        # actual return bytes and the page-one address expressions instead.
+        emulation_stack_fragments = (
+            "ZEXT23(&stack0x0000) = 0x87",
+            "CONCAT11(uVar3,0xff) = 8",
+            "uVar2 = CONCAT11(uVar3,0xfe)",
+            "(uVar2 + 2) = 0x80",
+            "(uVar2 + 1) = 0x87",
+            "(uint3)uVar2 = 0x15",
+        )
+        for fragment in emulation_stack_fragments:
+            if fragment not in emulation_caller:
+                raise AssertionError(
+                    f"Missing emulation-mode stack effect {fragment!r}:\\n{emulation_caller}"
+                )
+        if not (
+            emulation_caller.index("CONCAT11(uVar3,0xff) = 8")
+            < emulation_caller.index("near_emu_fn(")
+            < emulation_caller.index("(uVar2 + 2) = 0x80")
+            < emulation_caller.index("far_emu_fn(")
+        ):
             raise AssertionError(
-                "Unexpected emulation-mode near/far stack effects. "
-                f"writes={emu_values}, locations={emu_locations}:\n{emulation_caller}"
+                "Emulation-mode return-address writes were not ordered around calls:\\n"
+                + emulation_caller
             )
 
         print("Native/emulation near/far and nested stack regression passed.")
