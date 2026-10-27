@@ -198,7 +198,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                     self.assertEqual(len(bodies), 1)
                     body = bodies[0]
                     status_push = (
-                        "push_status_native();"
+                        "push_status_native(ctx_MF, ctx_XF);"
                         if mode == "native"
                         else "push_status_emulation(1:1);"
                     )
