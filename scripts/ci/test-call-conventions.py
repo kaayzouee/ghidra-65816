@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 # Base address is 0x808000 (bank $80). The caller passes values in A/C, X, and Y,
-# calls $8100 with JSR and $008200 with JSL, then stores each return value.
+# calls $8100 with JSR and $808200 with JSL, then stores each return value.
 ROM = bytearray([0xEA] * 0x500)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
