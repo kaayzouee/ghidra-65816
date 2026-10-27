@@ -118,7 +118,7 @@ def main() -> None:
         )[0]
         far_void = result.partition("=== farVoid decompile ===\n")[2]
         if not all((caller, near, far, caller16, near16, far16, caller_void, near_void, far_void)):
-            raise AssertionError("Headless test omitted one or more decompilations:\\n" + result)
+            raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
 
         for name in ("near_fn(", "far_fn("):
             if name not in caller:
