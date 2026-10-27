@@ -49,8 +49,7 @@ public class G65816CallConventionCheck extends GhidraScript {
         return function;
     }
 
-    private void setRegisterAbi(Function function, String convention, String returnConstant)
-            throws Exception {
+    private void setRegisterAbi(Function function, String convention) throws Exception {
         function.setCallingConvention(convention);
         function.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
         function.updateFunction(
@@ -81,8 +80,8 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function near = functionAtOrCreate(nearAddress, "near_fn");
             Function far = functionAtOrCreate(farAddress, "far_fn");
 
-            setRegisterAbi(near, "__near", "0x44");
-            setRegisterAbi(far, "__far", "0x55");
+            setRegisterAbi(near, "__near");
+            setRegisterAbi(far, "__far");
             caller.setCallingConvention("__unknowncall");
             caller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
 
