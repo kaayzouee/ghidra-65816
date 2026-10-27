@@ -214,17 +214,17 @@ def main() -> None:
             "=== registerEffectsCaller decompile ===\n"
         )[2].partition("=== registerEffectsCallee decompile ===\n")[0]
         register_effects_callee = result.partition(
-            "=== registerEffectsCallee decompile ===\\n"
-        )[2].partition("=== statusEffectsCaller decompile ===\\n")[0]
+            "=== registerEffectsCallee decompile ===\n"
+        )[2].partition("=== statusEffectsCaller decompile ===\n")[0]
         status_effects_caller = result.partition(
-            "=== statusEffectsCaller decompile ===\\n"
-        )[2].partition("=== crossBankCaller decompile ===\\n")[0]
+            "=== statusEffectsCaller decompile ===\n"
+        )[2].partition("=== crossBankCaller decompile ===\n")[0]
         cross_bank_caller = result.partition(
-            "=== crossBankCaller decompile ===\\n"
-        )[2].partition("=== crossBankCallee decompile ===\\n")[0]
+            "=== crossBankCaller decompile ===\n"
+        )[2].partition("=== crossBankCallee decompile ===\n")[0]
         cross_bank_callee = result.partition(
-            "=== crossBankCallee decompile ===\\n"
-        )[2].partition("=== emulationCaller decompile ===\\n")[0]
+            "=== crossBankCallee decompile ===\n"
+        )[2].partition("=== emulationCaller decompile ===\n")[0]
         emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
             "=== nearEmu decompile ===\n"
         )[0]
