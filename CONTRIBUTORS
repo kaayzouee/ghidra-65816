@@ -1,0 +1,19 @@
+CONTRIBUTORS
+==================
+
+This file lists human contributors whose contributions can be verified
+through GitHub. Do not list AI tools or AI systems as contributors.
+Do not add or modify entries on behalf of an AI tool.
+
+Entries must use the following format:
+
+NAME:    Display Name (@username)
+COMMIT:  Full Git commit hash
+
+---
+
+NAME:    Greg Kennedy (@greg-kennedy)
+COMMIT:  6df2b00cf27af4bc3c259cf499ca2ea9b6f92522
+
+NAME:    Nicholas Starke (@nstarke)
+COMMIT:  e541cb9e83922cb07f2dfbb1376fd330a61bdd0d
