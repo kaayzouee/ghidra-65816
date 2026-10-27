@@ -9,7 +9,6 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.Instruction;
-import ghidra.program.model.symbol.Reference;
 
 public class G65816AbsoluteTargetCheck extends GhidraScript {
     @Override
@@ -80,6 +79,36 @@ public class G65816AbsoluteTargetCheck extends GhidraScript {
 
                 out.printf("%06x|%s|%s|%06x%n", address.getOffset(),
                     instruction.getMnemonicString(), operand, target.getOffset());
+            }
+
+            // Indirect forms must stay computed even when their pointer bytes are visible.
+            long[] indirectOffsets = { 14, 17, 20, 23 };
+            String[] indirectMnemonics = { "JMP", "JMP", "JML", "JSR" };
+            for (int i = 0; i < indirectOffsets.length; i++) {
+                Address address = toAddr(codeBase + indirectOffsets[i]);
+                DisassembleCommand command = new DisassembleCommand(address, null, false);
+                command.setInitialContext(initialContext);
+                if (!command.applyTo(currentProgram, monitor)) {
+                    throw new IllegalStateException(
+                        "Disassembly failed at " + address + ": " + command.getStatusMsg());
+                }
+
+                Instruction instruction = currentProgram.getListing().getInstructionAt(address);
+                if (instruction == null
+                        || !indirectMnemonics[i].equals(instruction.getMnemonicString())) {
+                    throw new AssertionError("Expected " + indirectMnemonics[i]
+                        + " indirect form at " + address + ", got " + instruction);
+                }
+
+                var flowType = instruction.getFlowType();
+                boolean expectedCall = "JSR".equals(indirectMnemonics[i]);
+                if (!flowType.isComputed()
+                        || flowType.isCall() != expectedCall
+                        || flowType.isJump() == expectedCall) {
+                    throw new AssertionError("Expected computed "
+                        + (expectedCall ? "call" : "jump") + " at " + address
+                        + ", got " + flowType);
+                }
             }
         }
     }
