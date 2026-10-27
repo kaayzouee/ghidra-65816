@@ -9,7 +9,7 @@ Entries must use the following format:
 
 NAME:    Display Name (@username)
 COMMIT:  Full Git commit hash
-
+NOTE(S): Optional (need to split commits)
 ---
 
 NAME:    Greg Kennedy (@greg-kennedy)
@@ -18,3 +18,5 @@ COMMIT:  6df2b00cf27af4bc3c259cf499ca2ea9b6f92522
 NAME:    Nicholas Starke (@nstarke)
 COMMIT:  e541cb9e83922cb07f2dfbb1376fd330a61bdd0d
          dc8195806014e4f11f62b09f563815fa45576916
+COMMIT:  387a4eee7335137dcdf48b234a07048119d844d4
+NOTE(S): Broader changes from this commit are not included.
