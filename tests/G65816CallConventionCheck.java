@@ -116,6 +116,7 @@ public class G65816CallConventionCheck extends GhidraScript {
             Address farEmulationAddress = toAddr(0x808900);
             Address nestedCallerAddress = toAddr(0x8080A0);
             Address wrapperAddress = toAddr(0x808A00);
+            Address stackDataCallerAddress = toAddr(0x808B00);
 
             disassembleAt(callerAddress, context);
             disassembleAt(nearAddress, context);
@@ -134,6 +135,9 @@ public class G65816CallConventionCheck extends GhidraScript {
             // calls restore the caller's stack baseline.
             disassembleAt(nestedCallerAddress, context);
             disassembleAt(wrapperAddress, context);
+            // PHA data must survive a near/far call and be restored by PLA,
+            // without being interpreted as a stack-passed argument.
+            disassembleAt(stackDataCallerAddress, context);
 
             // In emulation mode M/X are 8-bit and the stack is page one. Set
             // callee context first so the caller cannot silently supply native mode.
@@ -160,6 +164,8 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function nestedCaller =
                 functionAtOrCreate(nestedCallerAddress, "nestedCaller");
             Function wrapper = functionAtOrCreate(wrapperAddress, "nested_wrapper");
+            Function stackDataCaller =
+                functionAtOrCreate(stackDataCallerAddress, "stackDataCaller");
 
             setRegisterAbi(near, "__near");
             setRegisterAbi(far, "__far");
@@ -171,6 +177,8 @@ public class G65816CallConventionCheck extends GhidraScript {
             wrapper.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             nestedCaller.setCallingConvention("__unknowncall");
             nestedCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            stackDataCaller.setCallingConvention("__unknowncall");
+            stackDataCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             emulationCaller.setCallingConvention("__unknowncall");
             emulationCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             nearVoid.setCallingConvention("__near");
@@ -210,6 +218,7 @@ public class G65816CallConventionCheck extends GhidraScript {
                 decompileAndPrint(decompiler, farVoid, "farVoid", out);
                 decompileAndPrint(decompiler, nestedCaller, "nestedCaller", out);
                 decompileAndPrint(decompiler, wrapper, "nestedWrapper", out);
+                decompileAndPrint(decompiler, stackDataCaller, "stackDataCaller", out);
                 decompileAndPrint(decompiler, emulationCaller, "emulationCaller", out);
                 decompileAndPrint(decompiler, nearEmulation, "nearEmu", out);
                 decompileAndPrint(decompiler, farEmulation, "farEmu", out);
