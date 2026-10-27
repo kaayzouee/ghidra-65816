@@ -2,6 +2,7 @@ package ghidra65816;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.Reader;
@@ -700,6 +701,7 @@ class PcodeEmulatorRegressionTest {
             writeMemory(run, pair.get(0).getAsLong(),
                 new byte[] {(byte) pair.get(1).getAsInt()});
         }
+        long opcode = readMemory(run, codeAddress, 1);
 
         long status = initial.get("p").getAsLong();
         long emulation = initial.get("e").getAsLong();
@@ -799,6 +801,26 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void waiFallsThroughWhenWaitAndInterruptBehaviorIsNotModeled() throws Exception {
+        Run run = start(new byte[] {(byte) 0xcb, (byte) 0xea}); // WAI, NOP
+
+        executeOne(run);
+
+        assertEquals(CODE_ADDRESS + 1, readRegister(run, "PC"));
+        assertEquals(run.space().getAddress(CODE_ADDRESS + 1), run.thread().getCounter());
+    }
+
+    @Test
+    void stpSelfLoopsAtItsInstructionAddress() throws Exception {
+        Run run = start(new byte[] {(byte) 0xdb, (byte) 0xea}); // STP, NOP
+
+        executeOne(run);
+
+        assertEquals(CODE_ADDRESS, readRegister(run, "PC"));
+        assertEquals(run.space().getAddress(CODE_ADDRESS), run.thread().getCounter());
+    }
+
+    @Test
     void brlAtProgramBankEndWrapsWithinTheSameBank() throws Exception {
         Run run = startAt(0x12fffd, new byte[] {(byte) 0x82, (byte) 0xfe, (byte) 0xff}); // BRL -2
         writeRegister(run, "PC", 0xfffd);
@@ -873,7 +895,13 @@ class PcodeEmulatorRegressionTest {
 
         executeOne(run);
 
-        assertEquals(expected.get("pc").getAsLong(), readRegister(run, "PC"), name + " PC");
+        long actualPc = readRegister(run, "PC");
+        long expectedPc = expected.get("pc").getAsLong();
+        // SingleStepTests records the post-fetch PC; this model represents STP
+        // as a self-loop. Detect the opcode from initial memory, not the display name.
+        boolean haltedStp = opcode == 0xdb
+            && actualPc == initial.get("pc").getAsLong();
+        assertTrue(actualPc == expectedPc || haltedStp, name + " PC");
         assertEquals(expected.get("pbr").getAsLong(), readRegister(run, "PBR"), name + " PBR");
         assertEquals(expected.get("a").getAsLong(), readRegister(run, "C"), name + " accumulator");
         assertEquals(expected.get("x").getAsLong(), readRegister(run, "X"), name + " X");

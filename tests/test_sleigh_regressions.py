@@ -257,14 +257,23 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                 self.assertNotIn(f"flag8_NZ({source});", matches[0])
 
 
-    def test_stp_does_not_synthesize_an_immediate_reset(self) -> None:
+    def test_stp_self_loops_without_an_unimplemented_userop_or_reset(self) -> None:
         blocks = instruction_blocks("STP")
         self.assertEqual(len(blocks), 1)
         _, body = blocks[0]
-        self.assertIn("stop();", body)
         self.assertIn("goto inst_start;", body)
+        self.assertNotIn("stop();", body)
         self.assertNotIn("0x00FFFC", body)
         self.assertNotRegex(body, r"\bgoto\s+\[")
+        self.assertNotIn("define pcodeop stop;", SINC)
+
+    def test_wai_uses_fallthrough_without_an_unimplemented_userop(self) -> None:
+        blocks = instruction_blocks("WAI")
+        self.assertEqual(len(blocks), 1)
+        _, body = blocks[0]
+        self.assertEqual(body.strip(), "")
+        self.assertNotIn("wai();", body)
+        self.assertNotIn("define pcodeop wai;", SINC)
 
     def test_native_xce_preserves_width_context_and_index_high_bytes(self) -> None:
         blocks = instruction_blocks("XCE")

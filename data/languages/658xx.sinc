@@ -1754,14 +1754,10 @@ macro do_sep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
     deref_write16(C, PRIMARY_OP_NO_IMM);
 }
 
-define pcodeop stop;
-# STP halts execution until hardware reset. Do not synthesize a reset-vector
-# read/jump here: that would model reset as an immediate consequence of STP.
+# STP halts until hardware reset. Model that control flow as a self-loop
+# rather than synthesizing an immediate reset-vector transfer.
 :STP    is op=0xdb
 {
-    stop();
-    # SLEIGH has no native halt-flow operator; a self-loop prevents treating
-    # the instruction as normal fall-through. Hardware reset is external.
     goto inst_start;
 }
 
@@ -2000,12 +1996,9 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
     flag16_NZ(Y);
 }
 
-# WAI will either jump to various interrupt vectors, or continue to the next instruction,
-# depending on IF and the interrupt type.
-define pcodeop wai;
+# WAI's wait state and interrupt/wakeup handling are not modeled by this p-code emulator.
 :WAI    is op=0xcb
 {
-    wai();
 }
 
 :WDM    is op=0x42; unused8  {}
