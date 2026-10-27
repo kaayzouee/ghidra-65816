@@ -192,10 +192,10 @@ def main() -> None:
             "=== registerEffectsCaller decompile ===\n"
         )[0]
         register_effects_caller = result.partition(
-            "=== registerEffectsCaller decompile ===\\n"
+            "=== registerEffectsCaller decompile ===\n"
         )[2].partition("=== registerEffectsCallee decompile ===\n")[0]
         register_effects_callee = result.partition(
-            "=== registerEffectsCallee decompile ===\\n"
+            "=== registerEffectsCallee decompile ===\n"
         )[2].partition("=== emulationCaller decompile ===\n")[0]
         emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
             "=== nearEmu decompile ===\n"
@@ -326,7 +326,7 @@ def main() -> None:
         # the saved stack0x0000 byte rather than a return-address byte.
         if "nested_wrapper()" not in stack_data_caller or "near_fn(" not in stack_data_caller:
             raise AssertionError(
-                "Stack-data caller omitted calls or treated the wrapper as parameterized:\\n"
+                "Stack-data caller omitted calls or treated the wrapper as parameterized:\n"
                 + stack_data_caller
             )
         stack_data_values, stack_data_locations = extract_stack_writes(stack_data_caller)
@@ -339,7 +339,7 @@ def main() -> None:
                 or stack_data_locations != expected_stack_data_locations):
             raise AssertionError(
                 "Saved data or return addresses occupied unexpected stack slots. "
-                f"writes={stack_data_values}, locations={stack_data_locations}:\\n"
+                f"writes={stack_data_values}, locations={stack_data_locations}:\n"
                 + stack_data_caller
             )
         for address in ("0x324", "0x325"):
@@ -347,7 +347,7 @@ def main() -> None:
                     address in line and "&stack0x0000" in line
                     for line in stack_data_caller.splitlines()):
                 raise AssertionError(
-                    f"Store to {address} did not read back the saved stack0x0000 byte:\\n"
+                    f"Store to {address} did not read back the saved stack0x0000 byte:\n"
                     + stack_data_caller
                 )
 
@@ -356,7 +356,7 @@ def main() -> None:
         # pre-call values when deriving the caller's effective addresses/branch.
         if "extraout_DP" not in register_effects_caller:
             raise AssertionError(
-                "Direct-page store did not use the caller-clobbered DP value:\\n"
+                "Direct-page store did not use the caller-clobbered DP value:\n"
                 + register_effects_caller
             )
         if not any(
@@ -364,17 +364,17 @@ def main() -> None:
             for line in register_effects_caller.splitlines()
         ):
             raise AssertionError(
-                "Absolute store did not use the caller-clobbered DBR value:\\n"
+                "Absolute store did not use the caller-clobbered DBR value:\n"
                 + register_effects_caller
             )
         if "extraout_ZF" not in register_effects_caller:
             raise AssertionError(
-                "BNE after the call did not use a caller-clobbered ZF value:\\n"
+                "BNE after the call did not use a caller-clobbered ZF value:\n"
                 + register_effects_caller
             )
         if "void __far registerEffectsCallee(void)" not in register_effects_callee:
             raise AssertionError(
-                "Register-effect callee did not decompile as a void function:\\n"
+                "Register-effect callee did not decompile as a void function:\n"
                 + register_effects_callee
             )
 
@@ -409,7 +409,7 @@ def main() -> None:
         for fragment in emulation_stack_fragments:
             if fragment not in emulation_caller:
                 raise AssertionError(
-                    f"Missing emulation-mode stack effect {fragment!r}:\\n{emulation_caller}"
+                    f"Missing emulation-mode stack effect {fragment!r}:\n{emulation_caller}"
                 )
         if not (
             emulation_caller.index("CONCAT11(uVar3,0xff) = 8")
@@ -418,7 +418,7 @@ def main() -> None:
             < emulation_caller.index("far_emu_fn(")
         ):
             raise AssertionError(
-                "Emulation-mode return-address writes were not ordered around calls:\\n"
+                "Emulation-mode return-address writes were not ordered around calls:\n"
                 + emulation_caller
             )
 
