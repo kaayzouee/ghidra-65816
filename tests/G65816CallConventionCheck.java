@@ -92,12 +92,12 @@ public class G65816CallConventionCheck extends GhidraScript {
         String[] args = getScriptArgs();
         try (PrintStream out = new PrintStream(args[0])) {
             RegisterValue context = initialContext();
-            Address callerAddress = toAddr(0x8000);
-            Address nearAddress = toAddr(0x8100);
-            Address farAddress = toAddr(0x8200);
-            Address caller16Address = toAddr(0x8020);
-            Address near16Address = toAddr(0x8300);
-            Address far16Address = toAddr(0x8400);
+            Address callerAddress = toAddr(0x808000);
+            Address nearAddress = toAddr(0x808100);
+            Address farAddress = toAddr(0x808200);
+            Address caller16Address = toAddr(0x808020);
+            Address near16Address = toAddr(0x808300);
+            Address far16Address = toAddr(0x808400);
 
             disassembleAt(callerAddress, context);
             disassembleAt(nearAddress, context);
