@@ -87,6 +87,16 @@ public class G65816CallConventionCheck extends GhidraScript {
             new ParameterImpl("argY", UnsignedShortDataType.dataType, currentProgram));
     }
 
+    private RegisterValue initialContextEmulation() {
+        Register context = currentProgram.getLanguage().getContextBaseRegister();
+        RegisterValue value = new RegisterValue(context);
+        value = value.assign(currentProgram.getLanguage().getRegister("ctx_MF"), BigInteger.ONE);
+        value = value.assign(currentProgram.getLanguage().getRegister("ctx_XF"), BigInteger.ONE);
+        // Emulation mode forces 8-bit accumulator/index registers and uses page-one stack.
+        value = value.assign(currentProgram.getLanguage().getRegister("ctx_EF"), BigInteger.ONE);
+        return value;
+    }
+
     @Override
     protected void run() throws Exception {
         String[] args = getScriptArgs();
@@ -101,6 +111,11 @@ public class G65816CallConventionCheck extends GhidraScript {
             Address callerVoidAddress = toAddr(0x808060);
             Address nearVoidAddress = toAddr(0x808500);
             Address farVoidAddress = toAddr(0x808600);
+            Address emulationCallerAddress = toAddr(0x808700);
+            Address nearEmulationAddress = toAddr(0x808800);
+            Address farEmulationAddress = toAddr(0x808900);
+            Address nestedCallerAddress = toAddr(0x8080A0);
+            Address wrapperAddress = toAddr(0x808A00);
 
             disassembleAt(callerAddress, context);
             disassembleAt(nearAddress, context);
@@ -114,6 +129,18 @@ public class G65816CallConventionCheck extends GhidraScript {
             disassembleAt(nearVoidAddress, context);
             disassembleAt(farVoidAddress, context);
             disassembleAt(callerVoidAddress, context);
+            // A wrapper makes a near call and a far call before returning to a
+            // caller that then makes another near call. This tests that nested
+            // calls restore the caller's stack baseline.
+            disassembleAt(nestedCallerAddress, context);
+            disassembleAt(wrapperAddress, context);
+
+            // In emulation mode M/X are 8-bit and the stack is page one. Set
+            // callee context first so the caller cannot silently supply native mode.
+            RegisterValue emulationContext = initialContextEmulation();
+            disassembleAt(nearEmulationAddress, emulationContext);
+            disassembleAt(farEmulationAddress, emulationContext);
+            disassembleAt(emulationCallerAddress, emulationContext);
 
             Function caller = functionAtOrCreate(callerAddress, "caller");
             Function near = functionAtOrCreate(nearAddress, "near_fn");
@@ -124,11 +151,28 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function callerVoid = functionAtOrCreate(callerVoidAddress, "callerVoid");
             Function nearVoid = functionAtOrCreate(nearVoidAddress, "near_void");
             Function farVoid = functionAtOrCreate(farVoidAddress, "far_void");
+            Function emulationCaller =
+                functionAtOrCreate(emulationCallerAddress, "emulationCaller");
+            Function nearEmulation =
+                functionAtOrCreate(nearEmulationAddress, "near_emu_fn");
+            Function farEmulation =
+                functionAtOrCreate(farEmulationAddress, "far_emu_fn");
+            Function nestedCaller =
+                functionAtOrCreate(nestedCallerAddress, "nestedCaller");
+            Function wrapper = functionAtOrCreate(wrapperAddress, "nested_wrapper");
 
             setRegisterAbi(near, "__near");
             setRegisterAbi(far, "__far");
             setRegisterAbi16(near16, "__near");
             setRegisterAbi16(far16, "__far");
+            setRegisterAbi(nearEmulation, "__near");
+            setRegisterAbi(farEmulation, "__far");
+            wrapper.setCallingConvention("__far");
+            wrapper.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            nestedCaller.setCallingConvention("__unknowncall");
+            nestedCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            emulationCaller.setCallingConvention("__unknowncall");
+            emulationCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             nearVoid.setCallingConvention("__near");
             nearVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             farVoid.setCallingConvention("__far");
@@ -146,6 +190,9 @@ public class G65816CallConventionCheck extends GhidraScript {
             out.println("far16=" + far16.getCallingConventionName());
             out.println("nearVoid=" + nearVoid.getCallingConventionName());
             out.println("farVoid=" + farVoid.getCallingConventionName());
+            out.println("nearEmu=" + nearEmulation.getCallingConventionName());
+            out.println("farEmu=" + farEmulation.getCallingConventionName());
+            out.println("nestedWrapper=" + wrapper.getCallingConventionName());
 
             DecompInterface decompiler = new DecompInterface();
             try {
@@ -161,6 +208,11 @@ public class G65816CallConventionCheck extends GhidraScript {
                 decompileAndPrint(decompiler, callerVoid, "callerVoid", out);
                 decompileAndPrint(decompiler, nearVoid, "nearVoid", out);
                 decompileAndPrint(decompiler, farVoid, "farVoid", out);
+                decompileAndPrint(decompiler, nestedCaller, "nestedCaller", out);
+                decompileAndPrint(decompiler, wrapper, "nestedWrapper", out);
+                decompileAndPrint(decompiler, emulationCaller, "emulationCaller", out);
+                decompileAndPrint(decompiler, nearEmulation, "nearEmu", out);
+                decompileAndPrint(decompiler, farEmulation, "farEmu", out);
             }
             finally {
                 decompiler.dispose();
