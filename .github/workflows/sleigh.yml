@@ -81,6 +81,9 @@ jobs:
       - name: Run near/far calling-convention regressions
         run: python scripts/ci/test-call-conventions.py
 
+      - name: Check calling-convention ABI reference snapshot
+        run: python scripts/ci/check-abi-reference.py
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
