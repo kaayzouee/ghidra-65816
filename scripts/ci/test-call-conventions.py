@@ -76,7 +76,7 @@ def extract_stack_writes(source: str) -> tuple[list[str], list[str]]:
     values: list[str] = []
     locations: list[str] = []
     for line in source.splitlines():
-        if ("&stack0x" in line or "&uStack_") and " = " in line:
+        if ("&stack0x" in line or "&uStack_" in line) and " = " in line:
             values.append(line.rsplit(" = ", 1)[1].rstrip(";").strip())
             locations.append(line.split("&", 1)[1].split(")", 1)[0])
     return values, locations
