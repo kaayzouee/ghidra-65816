@@ -156,6 +156,16 @@ def main() -> None:
         if "return 0xbcde" not in far16:
             raise AssertionError("16-bit far return value was not recovered:\n" + far16)
 
+        if "near_void(" not in caller_void or "far_void(" not in caller_void:
+            raise AssertionError("Void callees missing from caller decompilation:\n" + caller_void)
+        # Void callees overwrite A; stale pre-call constants must not survive.
+        for stale_store in ("0x308) = 0x11", "0x309) = 0x22"):
+            if stale_store in caller_void:
+                raise AssertionError(
+                    f"Accumulator value incorrectly survives void call ({stale_store}):\n"
+                    + caller_void
+                )
+
         # JSR pushes high/low return bytes; JSL pushes bank/high/low bytes.
         # The next call must reuse the caller's stack baseline after the first
         # callee returns. The stack variable names expose an unexpected residual
