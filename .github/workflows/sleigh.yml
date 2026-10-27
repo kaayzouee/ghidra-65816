@@ -75,6 +75,9 @@ jobs:
       - name: Run headless disassembly regressions
         run: python scripts/ci/test-issue-disassembly.py
 
+      - name: Run absolute-target display regressions
+        run: python scripts/ci/test-absolute-target-display.py
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
