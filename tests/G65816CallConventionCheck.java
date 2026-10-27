@@ -98,6 +98,9 @@ public class G65816CallConventionCheck extends GhidraScript {
             Address caller16Address = toAddr(0x808020);
             Address near16Address = toAddr(0x808300);
             Address far16Address = toAddr(0x808400);
+            Address callerVoidAddress = toAddr(0x808060);
+            Address nearVoidAddress = toAddr(0x808500);
+            Address farVoidAddress = toAddr(0x808600);
 
             disassembleAt(callerAddress, context);
             disassembleAt(nearAddress, context);
@@ -108,6 +111,9 @@ public class G65816CallConventionCheck extends GhidraScript {
             disassembleAt(near16Address, context16);
             disassembleAt(far16Address, context16);
             disassembleAt(caller16Address, context);
+            disassembleAt(nearVoidAddress, context);
+            disassembleAt(farVoidAddress, context);
+            disassembleAt(callerVoidAddress, context);
 
             Function caller = functionAtOrCreate(callerAddress, "caller");
             Function near = functionAtOrCreate(nearAddress, "near_fn");
@@ -115,20 +121,31 @@ public class G65816CallConventionCheck extends GhidraScript {
             Function caller16 = functionAtOrCreate(caller16Address, "caller16");
             Function near16 = functionAtOrCreate(near16Address, "near16_fn");
             Function far16 = functionAtOrCreate(far16Address, "far16_fn");
+            Function callerVoid = functionAtOrCreate(callerVoidAddress, "callerVoid");
+            Function nearVoid = functionAtOrCreate(nearVoidAddress, "near_void");
+            Function farVoid = functionAtOrCreate(farVoidAddress, "far_void");
 
             setRegisterAbi(near, "__near");
             setRegisterAbi(far, "__far");
             setRegisterAbi16(near16, "__near");
             setRegisterAbi16(far16, "__far");
+            nearVoid.setCallingConvention("__near");
+            nearVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            farVoid.setCallingConvention("__far");
+            farVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             caller.setCallingConvention("__unknowncall");
             caller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             caller16.setCallingConvention("__unknowncall");
             caller16.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            callerVoid.setCallingConvention("__unknowncall");
+            callerVoid.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
 
             out.println("near=" + near.getCallingConventionName());
             out.println("far=" + far.getCallingConventionName());
             out.println("near16=" + near16.getCallingConventionName());
             out.println("far16=" + far16.getCallingConventionName());
+            out.println("nearVoid=" + nearVoid.getCallingConventionName());
+            out.println("farVoid=" + farVoid.getCallingConventionName());
 
             DecompInterface decompiler = new DecompInterface();
             try {
@@ -141,6 +158,9 @@ public class G65816CallConventionCheck extends GhidraScript {
                 decompileAndPrint(decompiler, caller16, "caller16", out);
                 decompileAndPrint(decompiler, near16, "near16", out);
                 decompileAndPrint(decompiler, far16, "far16", out);
+                decompileAndPrint(decompiler, callerVoid, "callerVoid", out);
+                decompileAndPrint(decompiler, nearVoid, "nearVoid", out);
+                decompileAndPrint(decompiler, farVoid, "farVoid", out);
             }
             finally {
                 decompiler.dispose();
