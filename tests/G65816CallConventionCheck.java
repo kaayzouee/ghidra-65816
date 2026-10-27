@@ -119,6 +119,9 @@ public class G65816CallConventionCheck extends GhidraScript {
             Address stackDataCallerAddress = toAddr(0x808B00);
             Address registerEffectsCallerAddress = toAddr(0x808C00);
             Address registerEffectsCalleeAddress = toAddr(0x808C80);
+            Address statusEffectsCallerAddress = toAddr(0x808D00);
+            Address crossBankCallerAddress = toAddr(0x808D80);
+            Address crossBankCalleeAddress = toAddr(0x818100);
 
             disassembleAt(callerAddress, context);
             disassembleAt(nearAddress, context);
@@ -144,6 +147,9 @@ public class G65816CallConventionCheck extends GhidraScript {
             // observes those effects through direct-page/absolute stores and BNE.
             disassembleAt(registerEffectsCalleeAddress, context);
             disassembleAt(registerEffectsCallerAddress, context);
+            disassembleAt(statusEffectsCallerAddress, context);
+            disassembleAt(crossBankCalleeAddress, context);
+            disassembleAt(crossBankCallerAddress, context);
 
             // In emulation mode M/X are 8-bit and the stack is page one. Set
             // callee context first so the caller cannot silently supply native mode.
@@ -176,6 +182,12 @@ public class G65816CallConventionCheck extends GhidraScript {
                 functionAtOrCreate(registerEffectsCallerAddress, "registerEffectsCaller");
             Function registerEffectsCallee =
                 functionAtOrCreate(registerEffectsCalleeAddress, "registerEffectsCallee");
+            Function statusEffectsCaller =
+                functionAtOrCreate(statusEffectsCallerAddress, "statusEffectsCaller");
+            Function crossBankCaller =
+                functionAtOrCreate(crossBankCallerAddress, "crossBankCaller");
+            Function crossBankCallee =
+                functionAtOrCreate(crossBankCalleeAddress, "crossBankCallee");
 
             setRegisterAbi(near, "__near");
             setRegisterAbi(far, "__far");
@@ -193,6 +205,12 @@ public class G65816CallConventionCheck extends GhidraScript {
             registerEffectsCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             registerEffectsCallee.setCallingConvention("__far");
             registerEffectsCallee.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            statusEffectsCaller.setCallingConvention("__unknowncall");
+            statusEffectsCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            crossBankCaller.setCallingConvention("__unknowncall");
+            crossBankCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
+            crossBankCallee.setCallingConvention("__far");
+            crossBankCallee.setReturnType(UnsignedCharDataType.dataType, SourceType.USER_DEFINED);
             emulationCaller.setCallingConvention("__unknowncall");
             emulationCaller.setReturnType(VoidDataType.dataType, SourceType.USER_DEFINED);
             nearVoid.setCallingConvention("__near");
@@ -216,6 +234,7 @@ public class G65816CallConventionCheck extends GhidraScript {
             out.println("farEmu=" + farEmulation.getCallingConventionName());
             out.println("nestedWrapper=" + wrapper.getCallingConventionName());
             out.println("registerEffectsCallee=" + registerEffectsCallee.getCallingConventionName());
+            out.println("crossBankCallee=" + crossBankCallee.getCallingConventionName());
 
             DecompInterface decompiler = new DecompInterface();
             try {
@@ -236,6 +255,9 @@ public class G65816CallConventionCheck extends GhidraScript {
                 decompileAndPrint(decompiler, stackDataCaller, "stackDataCaller", out);
                 decompileAndPrint(decompiler, registerEffectsCaller, "registerEffectsCaller", out);
                 decompileAndPrint(decompiler, registerEffectsCallee, "registerEffectsCallee", out);
+                decompileAndPrint(decompiler, statusEffectsCaller, "statusEffectsCaller", out);
+                decompileAndPrint(decompiler, crossBankCaller, "crossBankCaller", out);
+                decompileAndPrint(decompiler, crossBankCallee, "crossBankCallee", out);
                 decompileAndPrint(decompiler, emulationCaller, "emulationCaller", out);
                 decompileAndPrint(decompiler, nearEmulation, "nearEmu", out);
                 decompileAndPrint(decompiler, farEmulation, "farEmu", out);
