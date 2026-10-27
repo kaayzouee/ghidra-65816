@@ -79,12 +79,14 @@ ROM[0x0B00:0x0B16] = bytes.fromhex(
 )
 
 
-def extract_stack_writes(source: str) -> tuple[list[str], list[str]]:
-    values: list[str] = []
+def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
+    values: list[int] = []
     locations: list[str] = []
     for line in source.splitlines():
         if ("&stack0x" in line or "&uStack_" in line) and " = " in line:
-            values.append(line.rsplit(" = ", 1)[1].rstrip(";").strip())
+            value = line.rsplit(" = ", 1)[1].rstrip(";").strip()
+            # Ghidra may print small values in decimal and others in hex.
+            values.append(int(value, 0))
             locations.append(line.split("&", 1)[1].split(")", 1)[0])
     return values, locations
 
@@ -260,7 +262,7 @@ def main() -> None:
         ]
 
         stack_writes, stack_locations = extract_stack_writes(caller)
-        expected_values = ["0x80", "8", "0x80", "0x80", "0x15"]
+        expected_values = [0x80, 8, 0x80, 0x80, 0x15]
         if stack_writes != expected_values or stack_locations != expected_locations_near_then_far:
             raise AssertionError(
                 "Unexpected native near/far return-address stack effects. "
@@ -270,7 +272,7 @@ def main() -> None:
         # The root's JSL to a far wrapper and the following JSR must reuse the
         # same baseline after the wrapper's nested near/far calls have returned.
         nested_values, nested_locations = extract_stack_writes(nested_caller)
-        expected_nested_values = ["0x80", "0x80", "0xa5", "0x80", "0xad"]
+        expected_nested_values = [0x80, 0x80, 0xa5, 0x80, 0xad]
         expected_root_locations = [
             "stack0x0000", "uStack_1", "uStack_2", "stack0x0000", "uStack_1"
         ]
@@ -286,7 +288,7 @@ def main() -> None:
         # the wrapper's baseline. The $8A PC high byte distinguishes these
         # nested return addresses from the root caller's $80 bank.
         wrapper_values, wrapper_locations = extract_stack_writes(nested_wrapper)
-        expected_wrapper_values = ["0x8a", "4", "0x80", "0x8a", "13"]
+        expected_wrapper_values = [0x8a, 4, 0x80, 0x8a, 13]
         if "near_fn(" not in nested_wrapper or "far_fn(" not in nested_wrapper:
             raise AssertionError("Wrapper omitted a nested near/far call:\n" + nested_wrapper)
         if wrapper_values != expected_wrapper_values or wrapper_locations != expected_locations_near_then_far:
@@ -327,7 +329,7 @@ def main() -> None:
         if "return 'U'" not in far_emu:
             raise AssertionError("Emulation far return value was not recovered:\n" + far_emu)
         emu_values, emu_locations = extract_stack_writes(emulation_caller)
-        expected_emu_values = ["0x87", "8", "0x80", "0x87", "0x15"]
+        expected_emu_values = [0x87, 8, 0x80, 0x87, 0x15]
         if emu_values != expected_emu_values or emu_locations != expected_locations_near_then_far:
             raise AssertionError(
                 "Unexpected emulation-mode near/far stack effects. "
