@@ -188,15 +188,15 @@ def main() -> None:
         nested_wrapper = result.partition("=== nestedWrapper decompile ===\n")[2].partition(
             "=== stackDataCaller decompile ===\n"
         )[0]
-        stack_data_caller = result.partition("=== stackDataCaller decompile ===\\n")[2].partition(
-            "=== registerEffectsCaller decompile ===\\n"
+        stack_data_caller = result.partition("=== stackDataCaller decompile ===\n")[2].partition(
+            "=== registerEffectsCaller decompile ===\n"
         )[0]
         register_effects_caller = result.partition(
             "=== registerEffectsCaller decompile ===\\n"
-        )[2].partition("=== registerEffectsCallee decompile ===\\n")[0]
+        )[2].partition("=== registerEffectsCallee decompile ===\n")[0]
         register_effects_callee = result.partition(
             "=== registerEffectsCallee decompile ===\\n"
-        )[2].partition("=== emulationCaller decompile ===\\n")[0]
+        )[2].partition("=== emulationCaller decompile ===\n")[0]
         emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
             "=== nearEmu decompile ===\n"
         )[0]
@@ -372,7 +372,7 @@ def main() -> None:
                 "BNE after the call did not use a caller-clobbered ZF value:\\n"
                 + register_effects_caller
             )
-        if "void registerEffectsCallee(void)" not in register_effects_callee:
+        if "void __far registerEffectsCallee(void)" not in register_effects_callee:
             raise AssertionError(
                 "Register-effect callee did not decompile as a void function:\\n"
                 + register_effects_callee
