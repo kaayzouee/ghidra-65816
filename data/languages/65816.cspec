@@ -28,7 +28,7 @@
         <register name="Y"/>
       </pentry>
     </input>
-    <output>
+    <output killedbycall="true">
       <pentry minsize="1" maxsize="2">
         <register name="C"/>
       </pentry>
@@ -63,7 +63,7 @@
         <register name="Y"/>
       </pentry>
     </input>
-    <output>
+    <output killedbycall="true">
       <pentry minsize="1" maxsize="2">
         <register name="C"/>
       </pentry>
