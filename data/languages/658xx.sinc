@@ -396,7 +396,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 }
 
 # BRK native.
-:BRK $unused8    is (ctx_EF=0 & (ctx_MF=0 | ctx_MF=1) & (ctx_XF=0 | ctx_XF=1) & op=0x00); unused8
+:BRK $unused8    is (ctx_EF=0 & ctx_MF & ctx_XF & op=0x00); unused8
 {
     local this_pc_full:3 = inst_start;
     local this_pc:2 = this_pc_full:2;
@@ -494,7 +494,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 }
 
 # COP native.
-:COP $unused8    is (ctx_EF=0 & (ctx_MF=0 | ctx_MF=1) & (ctx_XF=0 | ctx_XF=1) & op=0x02); unused8
+:COP $unused8    is (ctx_EF=0 & ctx_MF & ctx_XF & op=0x02); unused8
 {
     local this_pc_full:3 = inst_start;
     local this_pc:2 = this_pc_full:2;
@@ -1158,7 +1158,7 @@ macro do_lsr16(_out, _data) {
 }
 
 # PHP native.
-:PHP    is (ctx_EF=0 & (ctx_MF=0 | ctx_MF=1) & (ctx_XF=0 | ctx_XF=1) & op=0x08)
+:PHP    is (ctx_EF=0 & ctx_MF & ctx_XF & op=0x08)
 {
     push_status_native(ctx_MF, ctx_XF);
 }
