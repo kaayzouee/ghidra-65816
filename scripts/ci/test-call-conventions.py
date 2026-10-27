@@ -11,7 +11,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 # Base address is 0x808000 (bank $80). The caller passes values in A/C, X, and Y,
 # calls $8100 with JSR and $808200 with JSL, then stores each return value.
-ROM = bytearray([0xEA] * 0xB00)
+ROM = bytearray([0xEA] * 0xC00)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
     "a9 42 a2 05 a0 06 22 00 82 80 8d 01 03 60"
@@ -69,6 +69,13 @@ ROM[0x00A0:0x00B2] = bytes.fromhex(
 )
 ROM[0x0A00:0x0A12] = bytes.fromhex(
     "a9 33 20 00 81 8d 22 03 a9 44 22 00 82 80 8d 23 03 6b"
+)
+
+# PHA data must survive JSL/RTL and JSR/RTS, with PLA restoring the original
+# byte after each call. These values are not stack-passed function arguments.
+ROM[0x0B00:0x0B16] = bytes.fromhex(
+    "a9 11 48 22 00 8a 80 68 8d 24 03 "
+    "a9 22 48 20 00 81 68 8d 25 03 60"
 )
 
 
@@ -160,6 +167,9 @@ def main() -> None:
             "=== nestedWrapper decompile ===\n"
         )[0]
         nested_wrapper = result.partition("=== nestedWrapper decompile ===\n")[2].partition(
+            "=== stackDataCaller decompile ===\n"
+        )[0]
+        stack_data_caller = result.partition("=== stackDataCaller decompile ===\n")[2].partition(
             "=== emulationCaller decompile ===\n"
         )[0]
         emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
@@ -171,7 +181,7 @@ def main() -> None:
         far_emu = result.partition("=== farEmu decompile ===\n")[2]
         if not all((
             caller, near, far, caller16, near16, far16, caller_void, near_void, far_void,
-            nested_caller, nested_wrapper, emulation_caller, near_emu, far_emu
+            nested_caller, nested_wrapper, stack_data_caller, emulation_caller, near_emu, far_emu
         )):
             raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
 
@@ -285,6 +295,21 @@ def main() -> None:
                 f"writes={wrapper_values}, locations={wrapper_locations}:\n{nested_wrapper}"
             )
 
+        # Stack bytes pushed by the caller must survive both call types. If the
+        # ABI model causes a stack-baseline leak, PLA can read the return address
+        # rather than the saved byte. Also verify these bytes are not passed as
+        # invented stack arguments to register-convention callees.
+        if "nested_wrapper()" not in stack_data_caller or "near_fn(" not in stack_data_caller:
+            raise AssertionError(
+                "Stack-data caller omitted calls or treated the wrapper as parameterized:\\n"
+                + stack_data_caller
+            )
+        for address, value in (("0x324", "0x11"), ("0x325", "0x22")):
+            if not any(address in line and value in line for line in stack_data_caller.splitlines()):
+                raise AssertionError(
+                    f"Saved stack byte {value} was not restored to {address}:\\n{stack_data_caller}"
+                )
+
         # Emulation mode is a separate context, not just another native-mode
         # caller. Verify argument/return recovery and the JSR/JSL stack bytes.
         for name in ("near_emu_fn(", "far_emu_fn("):
@@ -332,6 +357,8 @@ def main() -> None:
         print(nested_caller)
         print("=== nestedWrapper ===")
         print(nested_wrapper)
+        print("=== stackDataCaller ===")
+        print(stack_data_caller)
         print("=== emulationCaller ===")
         print(emulation_caller)
         print("=== nearEmu ===")
