@@ -68,6 +68,10 @@
         <register name="C"/>
       </pentry>
     </output>
+    <!-- JSL/RTL pushes/pulls a 3-byte return address. -->
+    <returnaddress>
+      <varnode space="stack" offset="1" size="3"/>
+    </returnaddress>
     <unaffected>
       <register name="SP"/>
     </unaffected>
