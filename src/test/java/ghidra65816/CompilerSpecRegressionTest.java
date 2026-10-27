@@ -14,6 +14,7 @@ import ghidra.framework.HeadlessGhidraApplicationConfiguration;
 import ghidra.program.model.lang.CompilerSpec;
 import ghidra.program.model.lang.Language;
 import ghidra.program.model.lang.LanguageID;
+import ghidra.program.model.lang.PrototypeModel;
 import ghidra.program.util.DefaultLanguageService;
 
 /** Smoke tests for the 65816 compiler specification. */
@@ -48,5 +49,22 @@ class CompilerSpecRegressionTest {
         assertNotNull(compilerSpec.getDefaultCallingConvention());
         assertEquals("__unknowncall",
             compilerSpec.getDefaultCallingConvention().getName());
+    }
+
+    @Test
+    void optionalNearAndFarModelsDoNotChangeTheDefault() {
+        CompilerSpec compilerSpec = language.getDefaultCompilerSpec();
+        PrototypeModel near = compilerSpec.getCallingConvention("__near");
+        PrototypeModel far = compilerSpec.getCallingConvention("__far");
+
+        assertNotNull(near);
+        assertNotNull(far);
+        assertEquals("__unknowncall",
+            compilerSpec.getDefaultCallingConvention().getName());
+
+        assertEquals(2, near.getExtrapop());
+        assertEquals(2, near.getStackshift());
+        assertEquals(3, far.getExtrapop());
+        assertEquals(3, far.getStackshift());
     }
 }
