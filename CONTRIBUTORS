@@ -26,3 +26,5 @@ COMMIT:  aleph-void/ghidra-65816/commit/7b340b771a6c84fff824361e7beaf0802ed318dc
 NOTE(S): Core WAI/STP control-flow changes ported. Other changes adapted/omitted.
 COMMIT:  aleph-void/ghidra-65816/commit/7985af33a5168363e9158a34f41d92f63ea3990b
 NOTE(S): Core direct-control-flow fix ported. Comments and commit message shortened.
+COMMIT:  aleph-void/ghidra-65816/commit/7985af33a5168363e9158a34f41d92f63ea3990b
+NOTE(S): Regression tests added to verify indirect transfers remain computed.
