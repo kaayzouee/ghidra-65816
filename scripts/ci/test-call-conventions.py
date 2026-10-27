@@ -83,7 +83,10 @@ def main() -> None:
                 f"Headless test produced no result file. Output:\n{completed.stdout}"
             )
         result = output.read_text(encoding="utf-8")
-        for marker in ("near=__near", "far=__far", "near16=__near", "far16=__far"):
+        for marker in (
+            "near=__near", "far=__far", "near16=__near", "far16=__far",
+            "nearVoid=__near", "farVoid=__far"
+        ):
             if marker not in result:
                 raise AssertionError("Functions did not retain selected conventions:\n" + result)
         if "FAILED " in result:
@@ -104,9 +107,18 @@ def main() -> None:
         near16 = result.partition("=== near16 decompile ===\n")[2].partition(
             "=== far16 decompile ===\n"
         )[0]
-        far16 = result.partition("=== far16 decompile ===\n")[2]
-        if not all((caller, near, far, caller16, near16, far16)):
-            raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
+        far16 = result.partition("=== far16 decompile ===\n")[2].partition(
+            "=== callerVoid decompile ===\n"
+        )[0]
+        caller_void = result.partition("=== callerVoid decompile ===\n")[2].partition(
+            "=== nearVoid decompile ===\n"
+        )[0]
+        near_void = result.partition("=== nearVoid decompile ===\n")[2].partition(
+            "=== farVoid decompile ===\n"
+        )[0]
+        far_void = result.partition("=== farVoid decompile ===\n")[2]
+        if not all((caller, near, far, caller16, near16, far16, caller_void, near_void, far_void)):
+            raise AssertionError("Headless test omitted one or more decompilations:\\n" + result)
 
         for name in ("near_fn(", "far_fn("):
             if name not in caller:
@@ -177,6 +189,12 @@ def main() -> None:
         print(near16)
         print("=== far16 ===")
         print(far16)
+        print("=== callerVoid ===")
+        print(caller_void)
+        print("=== nearVoid ===")
+        print(near_void)
+        print("=== farVoid ===")
+        print(far_void)
 
 
 if __name__ == "__main__":
