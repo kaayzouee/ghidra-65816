@@ -24,7 +24,7 @@ The default call model remains `__unknowncall`. The optional `__near` and `__far
 
 These models assume `C`, `X`, and `Y` can carry inputs, `C` carries a result, `SP` is preserved, and `X`, `Y`, `DP`, `DBR`, and status flags may be clobbered. This is a selectable convention, not a universal 65816 ABI. It does not describe stack-passed arguments.
 
-The global return-address annotation remains two bytes. The far model's three-byte stack shift therefore still needs a headless `JSL`/`RTL` decompilation regression before its stack effects can be considered verified.
+The models declare 2-byte and 3-byte return-address layouts for near and far calls respectively. Compiler-spec tests verify this metadata; headless decompiler coverage checks calls using both conventions. This does not imply that the register convention matches every compiler or ROM.
 
 ## When is a limitation fixed?
 
