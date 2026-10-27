@@ -125,6 +125,25 @@ def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
         locations.append(left.split("&", 1)[1].split(")", 1)[0])
     return values, locations
 
+def require_fragments(source: str, fragments: tuple[str, ...], context: str) -> None:
+    missing = [fragment for fragment in fragments if fragment not in source]
+    if missing:
+        raise AssertionError(f"{context}: missing {missing!r}\\n{source}")
+
+
+def assert_stack_effects(
+    source: str,
+    expected_values: list[int],
+    expected_locations: tuple[str, ...] | list[str],
+    context: str,
+) -> None:
+    values, locations = extract_stack_writes(source)
+    if values != expected_values or locations != list(expected_locations):
+        raise AssertionError(
+            f"{context}: writes={values}, locations={locations}\\n{source}"
+        )
+
+
 def extract_decompilations(source: str) -> dict[str, str]:
     """Return decompiler output keyed by the labels emitted by the Java script."""
     sections: dict[str, list[str]] = {}
@@ -138,7 +157,6 @@ def extract_decompilations(source: str) -> dict[str, str]:
             sections[current].append(line)
 
     return {name: "\n".join(lines).strip() for name, lines in sections.items()}
-
 
 
 def main() -> None:
@@ -178,14 +196,15 @@ def main() -> None:
                 f"Headless test produced no result file. Output:\n{completed.stdout}"
             )
         result = output.read_text(encoding="utf-8")
-        for marker in (
-            "near=__near", "far=__far", "near16=__near", "far16=__far",
-            "nearVoid=__near", "farVoid=__far",
-            "nearEmu=__near", "farEmu=__far", "nestedWrapper=__far",
-            "registerEffectsCallee=__far", "crossBankCallee=__far",
-        ):
-            if marker not in result:
-                raise AssertionError("Functions did not retain selected conventions:\n" + result)
+        require_fragments(
+            result,
+            (
+                "near=__near", "far=__far", "near16=__near", "far16=__far",
+                "nearVoid=__near", "farVoid=__far", "nearEmu=__near", "farEmu=__far",
+                "nestedWrapper=__far", "registerEffectsCallee=__far", "crossBankCallee=__far",
+            ),
+            "Functions did not retain selected conventions",
+        )
         if "FAILED " in result:
             raise AssertionError("Decompiler failure:\n" + result)
 
@@ -200,7 +219,7 @@ def main() -> None:
         missing = [name for name in section_names if not decompilations.get(name)]
         if missing:
             raise AssertionError(
-                f"Headless test omitted decompilations {missing}:\\n{result}"
+                f"Headless test omitted decompilations {missing}:\n{result}"
             )
 
         (
@@ -211,59 +230,35 @@ def main() -> None:
             emulation_caller, near_emu, far_emu,
         ) = (decompilations[name] for name in section_names)
 
-        for name in ("near_fn(", "far_fn("):
-            if name not in caller:
-                raise AssertionError(
-                    f"Caller decompilation did not contain {name}:\n{caller}"
-                )
         # Ghidra renders 8-bit integer arguments as C character constants.
-        for marker in (r"'\x11'", r"'\x03'", r"'\x04'"):
-            if marker not in caller:
-                raise AssertionError(
-                    f"Near call did not preserve input {marker}:\n{caller}"
-                )
-        for marker in ("'B'", r"'\x05'", r"'\x06'"):
-            if marker not in caller:
-                raise AssertionError(
-                    f"Far call did not preserve input {marker}:\n{caller}"
-                )
-        if "return 'D'" not in near:
-            raise AssertionError("Near function return value was not recovered:\n" + near)
-        if "return 'U'" not in far:
-            raise AssertionError("Far function return value was not recovered:\n" + far)
-
-        for name in ("near16_fn(", "far16_fn("):
-            if name not in caller16:
-                raise AssertionError(
-                    f"16-bit caller decompilation did not contain {name}:\n{caller16}"
-                )
-        for marker in ("0x1234", "0x2345", "0x3456", "0x4567", "0x5678", "0x6789"):
-            if marker not in caller16:
-                raise AssertionError(
-                    f"16-bit caller did not preserve input {marker}:\n{caller16}"
-                )
-        if "return 0x789a" not in near16:
-            raise AssertionError("16-bit near return value was not recovered:\n" + near16)
-        if "return 0xbcde" not in far16:
-            raise AssertionError("16-bit far return value was not recovered:\n" + far16)
-
-        if "near_void(" not in caller_void or "far_void(" not in caller_void:
-            raise AssertionError("Void callees missing from caller decompilation:\n" + caller_void)
-        # Verify that every post-call store uses the value returned by the
-        # clobber model, rather than merely checking that the calls are present.
-        expected_clobbers = (
-            "0x308) = extraout_A",
-            "0x30a) = extraout_XLow",
-            "0x30b) = extraout_YLow",
-            "0x309) = extraout_A_00",
-            "0x30c) = extraout_XLow_00",
-            "0x30d) = extraout_YLow_00",
+        require_fragments(
+            caller,
+            ("near_fn(", "far_fn(", r"'\x11'", r"'\x03'", r"'\x04'", "'B'", r"'\x05'", r"'\x06'"),
+            "8-bit calls or register arguments were not recovered",
         )
-        for fragment in expected_clobbers:
-            if fragment not in caller_void:
-                raise AssertionError(
-                    f"Expected post-call clobbered value {fragment!r}:\n{caller_void}"
-                )
+        require_fragments(near, ("return 'D'",), "Near return value was not recovered")
+        require_fragments(far, ("return 'U'",), "Far return value was not recovered")
+
+        require_fragments(
+            caller16,
+            ("near16_fn(", "far16_fn(", "0x1234", "0x2345", "0x3456",
+             "0x4567", "0x5678", "0x6789"),
+            "16-bit calls or register arguments were not recovered",
+        )
+        require_fragments(near16, ("return 0x789a",), "16-bit near return was not recovered")
+        require_fragments(far16, ("return 0xbcde",), "16-bit far return was not recovered")
+
+        # Verify that post-call stores use clobbered outputs, not stale values.
+        require_fragments(
+            caller_void,
+            (
+                "near_void(", "far_void(", "0x308) = extraout_A",
+                "0x30a) = extraout_XLow", "0x30b) = extraout_YLow",
+                "0x309) = extraout_A_00", "0x30c) = extraout_XLow_00",
+                "0x30d) = extraout_YLow_00",
+            ),
+            "Void-call clobbers were not propagated",
+        )
 
         # Void callees overwrite A/X/Y; stale pre-call values must not survive.
         stale_stores = (
@@ -285,63 +280,48 @@ def main() -> None:
             "stack0x0000", "uStack_1", "stack0x0000", "uStack_1", "uStack_2"
         ]
 
-        stack_writes, stack_locations = extract_stack_writes(caller)
-        expected_values = [0x80, 8, 0x80, 0x80, 0x15]
-        if stack_writes != expected_values or stack_locations != expected_locations_near_then_far:
-            raise AssertionError(
-                "Unexpected native near/far return-address stack effects. "
-                f"writes={stack_writes}, locations={stack_locations}:\n{caller}"
-            )
+        assert_stack_effects(
+            caller, [0x80, 8, 0x80, 0x80, 0x15],
+            expected_locations_near_then_far, "Native near/far return-address effects",
+        )
 
         # The root's JSL to a far wrapper and the following JSR must reuse the
         # same baseline after the wrapper's nested near/far calls have returned.
-        nested_values, nested_locations = extract_stack_writes(nested_caller)
-        expected_nested_values = [0x80, 0x80, 0xa5, 0x80, 0xad]
-        expected_root_locations = [
-            "stack0x0000", "uStack_1", "uStack_2", "stack0x0000", "uStack_1"
-        ]
-        if "nested_wrapper(" not in nested_caller or "near_fn(" not in nested_caller:
-            raise AssertionError("Nested caller omitted its mixed calls:\n" + nested_caller)
-        if nested_values != expected_nested_values or nested_locations != expected_root_locations:
-            raise AssertionError(
-                "Nested mixed calls did not restore the root stack baseline. "
-                f"writes={nested_values}, locations={nested_locations}:\n{nested_caller}"
-            )
+        require_fragments(
+            nested_caller, ("nested_wrapper(", "near_fn("),
+            "Nested caller omitted its mixed calls",
+        )
+        assert_stack_effects(
+            nested_caller, [0x80, 0x80, 0xa5, 0x80, 0xad],
+            ("stack0x0000", "uStack_1", "uStack_2", "stack0x0000", "uStack_1"),
+            "Nested calls did not restore the root stack baseline",
+        )
 
         # Inside the wrapper, a near call followed by a far call must also reuse
         # the wrapper's baseline. The $8A PC high byte distinguishes these
         # nested return addresses from the root caller's $80 bank.
-        wrapper_values, wrapper_locations = extract_stack_writes(nested_wrapper)
-        expected_wrapper_values = [0x8a, 4, 0x80, 0x8a, 13]
-        if "near_fn(" not in nested_wrapper or "far_fn(" not in nested_wrapper:
-            raise AssertionError("Wrapper omitted a nested near/far call:\n" + nested_wrapper)
-        if wrapper_values != expected_wrapper_values or wrapper_locations != expected_locations_near_then_far:
-            raise AssertionError(
-                "Nested wrapper near/far stack effects mismatch. "
-                f"writes={wrapper_values}, locations={wrapper_locations}:\n{nested_wrapper}"
-            )
+        require_fragments(
+            nested_wrapper, ("near_fn(", "far_fn("),
+            "Wrapper omitted a nested near/far call",
+        )
+        assert_stack_effects(
+            nested_wrapper, [0x8a, 4, 0x80, 0x8a, 13],
+            expected_locations_near_then_far, "Nested wrapper stack effects",
+        )
 
         # PHA data must survive both call types. Return-address bytes should
         # occupy higher stack slots, and the post-call store should still read
         # the saved stack0x0000 byte rather than a return-address byte.
-        if "nested_wrapper()" not in stack_data_caller or "near_fn(" not in stack_data_caller:
-            raise AssertionError(
-                "Stack-data caller omitted calls or treated the wrapper as parameterized:\n"
-                + stack_data_caller
-            )
-        stack_data_values, stack_data_locations = extract_stack_writes(stack_data_caller)
-        expected_stack_data_values = [0x11, 0x80, 0x8b, 6, 0x22, 0x8b, 0x10]
-        expected_stack_data_locations = [
-            "stack0x0000", "uStack_1", "uStack_2", "uStack_3",
-            "stack0x0000", "uStack_1", "uStack_2"
-        ]
-        if (stack_data_values != expected_stack_data_values
-                or stack_data_locations != expected_stack_data_locations):
-            raise AssertionError(
-                "Saved data or return addresses occupied unexpected stack slots. "
-                f"writes={stack_data_values}, locations={stack_data_locations}:\n"
-                + stack_data_caller
-            )
+        require_fragments(
+            stack_data_caller, ("nested_wrapper()", "near_fn("),
+            "Stack-data caller omitted calls or treated the wrapper as parameterized",
+        )
+        assert_stack_effects(
+            stack_data_caller, [0x11, 0x80, 0x8b, 6, 0x22, 0x8b, 0x10],
+            ("stack0x0000", "uStack_1", "uStack_2", "uStack_3",
+             "stack0x0000", "uStack_1", "uStack_2"),
+            "Saved data and return-address stack slots",
+        )
         for address in ("0x324", "0x325"):
             if not any(
                     address in line and "&stack0x0000" in line
@@ -354,22 +334,16 @@ def main() -> None:
         # The far void callee's convention promises that DP, DBR, and all
         # modeled status flags may be clobbered. Ghidra must not reuse their
         # pre-call values when deriving the caller's effective addresses/branch.
-        if "extraout_DP" not in register_effects_caller:
-            raise AssertionError(
-                "Direct-page store did not use the caller-clobbered DP value:\n"
-                + register_effects_caller
-            )
+        require_fragments(
+            register_effects_caller, ("extraout_DP", "extraout_ZF"),
+            "DP or ZF caller-clobber was not propagated",
+        )
         if not any(
             "extraout_DBR" in line and "0x1234" in line
             for line in register_effects_caller.splitlines()
         ):
             raise AssertionError(
                 "Absolute store did not use the caller-clobbered DBR value:\n"
-                + register_effects_caller
-            )
-        if "extraout_ZF" not in register_effects_caller:
-            raise AssertionError(
-                "BNE after the call did not use a caller-clobbered ZF value:\n"
                 + register_effects_caller
             )
         if "void __far registerEffectsCallee(void)" not in register_effects_callee:
@@ -381,59 +355,43 @@ def main() -> None:
         # These tests exercise flags through actual post-call instructions.
         # STZ does not modify flags, so each branch consumes the outgoing flag
         # value from the far call. ADC consumes DF, and PHP exposes IF.
-        for flag_name in ("extraout_ZF", "extraout_CF", "extraout_NF", "extraout_VF"):
-            if flag_name not in status_effects_caller:
-                raise AssertionError(
-                    f"Expected caller-clobbered {flag_name} after JSL:\n"
-                    + status_effects_caller
-                )
-        if "extraout_DF" not in status_effects_caller:
-            raise AssertionError(
-                "ADC after JSL did not consume caller-clobbered DF:\n"
-                + status_effects_caller
-            )
-        if "extraout_IF" not in status_effects_caller:
-            raise AssertionError(
-                "PHP after JSL did not expose caller-clobbered IF:\n"
-                + status_effects_caller
-            )
+        require_fragments(
+            status_effects_caller,
+            ("extraout_ZF", "extraout_CF", "extraout_NF", "extraout_VF",
+             "extraout_DF", "extraout_IF"),
+            "Caller-clobbered status flags were not propagated after JSL",
+        )
 
         # Cross-bank JSL/RTL must restore PBR to the caller's bank. The metadata
         # test covers the declaration; PHK/PLA makes the restored PBR observable.
         if "crossBankCallee();" not in cross_bank_caller or "0x344" not in cross_bank_caller:
             raise AssertionError(
-                "Cross-bank caller did not call the callee and store the observed PBR:\\n"
+                "Cross-bank caller did not call the callee and store the observed PBR:\n"
                 + cross_bank_caller
             )
         if "extraout_PBR" in cross_bank_caller:
             raise AssertionError(
-                "PBR is modeled as caller-clobbered after RTL:\\n" + cross_bank_caller
+                "PBR is modeled as caller-clobbered after RTL:\n" + cross_bank_caller
             )
         if not any(
             line.strip().endswith("= in_PBR;")
             for line in cross_bank_caller.splitlines()
         ):
             raise AssertionError(
-                "PHK/PLA after cross-bank RTL did not read the preserved caller PBR:\\n"
+                "PHK/PLA after cross-bank RTL did not read the preserved caller PBR:\n"
                 + cross_bank_caller
             )
 
         # Emulation mode is a separate context, not just another native-mode
         # caller. Verify argument/return recovery and the JSR/JSL stack bytes.
-        for name in ("near_emu_fn(", "far_emu_fn("):
-            if name not in emulation_caller:
-                raise AssertionError(
-                    f"Emulation caller decompilation did not contain {name}:\n{emulation_caller}"
-                )
-        for marker in (r"'\x11'", r"'\x03'", r"'\x04'", "'B'", r"'\x05'", r"'\x06'"):
-            if marker not in emulation_caller:
-                raise AssertionError(
-                    f"Emulation caller did not preserve input {marker}:\n{emulation_caller}"
-                )
-        if "return 'D'" not in near_emu:
-            raise AssertionError("Emulation near return value was not recovered:\n" + near_emu)
-        if "return 'U'" not in far_emu:
-            raise AssertionError("Emulation far return value was not recovered:\n" + far_emu)
+        require_fragments(
+            emulation_caller,
+            ("near_emu_fn(", "far_emu_fn(", r"'\x11'", r"'\x03'", r"'\x04'",
+             "'B'", r"'\x05'", r"'\x06'"),
+            "Emulation calls or register arguments were not recovered",
+        )
+        require_fragments(near_emu, ("return 'D'",), "Emulation near return was not recovered")
+        require_fragments(far_emu, ("return 'U'",), "Emulation far return was not recovered")
         # In emulation mode, S is constrained to page one. Unlike native
         # mode, the decompiler represents the wrapped SP addresses as computed
         # bus addresses rather than a sequence of uStack_N locals. Check the
@@ -446,11 +404,10 @@ def main() -> None:
             "(uVar2 + 1) = 0x87",
             "(uint3)uVar2 = 0x15",
         )
-        for fragment in emulation_stack_fragments:
-            if fragment not in emulation_caller:
-                raise AssertionError(
-                    f"Missing emulation-mode stack effect {fragment!r}:\n{emulation_caller}"
-                )
+        require_fragments(
+            emulation_caller, emulation_stack_fragments,
+            "Missing emulation-mode stack effects",
+        )
         if not (
             emulation_caller.index("CONCAT11(uVar3,0xff) = 8")
             < emulation_caller.index("near_emu_fn(")
