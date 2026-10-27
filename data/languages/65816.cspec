@@ -35,6 +35,7 @@
     </output>
     <unaffected>
       <register name="SP"/>
+      <register name="PBR"/>
     </unaffected>
     <killedbycall>
       <register name="X"/>
@@ -74,6 +75,7 @@
     </returnaddress>
     <unaffected>
       <register name="SP"/>
+      <register name="PBR"/>
     </unaffected>
     <killedbycall>
       <register name="X"/>
