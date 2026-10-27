@@ -61,8 +61,8 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertEqual(len(eight_bit), 1)
         self.assertEqual(len(sixteen_bit), 1)
         bodies = [body for _, body in blocks]
-        self.assertTrue(any("deref_read8(data" in body and "YLow" in body for body in bodies))
-        self.assertTrue(any("deref_read16(data" in body and "sext(Y)" in body for body in bodies))
+        self.assertTrue(any("local data:1 = CPXY_R8;" in body and "YLow" in body for body in bodies))
+        self.assertTrue(any("local data:2 = CPXY_R16;" in body and "sext(Y)" in body for body in bodies))
 
     def test_compare_carry_is_unsigned_no_borrow(self) -> None:
         expected = {
