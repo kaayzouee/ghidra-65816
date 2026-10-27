@@ -42,10 +42,10 @@ define context contextreg
 # are a pain to use in a semantic section.
 # These preprocessor macros work around this and allow for simpler manipulation
 # of status flags (bit range access/assignments).
-@define MF "contextreg[0,1]"
-@define XF "contextreg[1,1]"
+@define MF "contextreg[31,1]"
+@define XF "contextreg[30,1]"
 # @define DF "contextreg[2,1]"
-@define EF "contextreg[3,1]"
+@define EF "contextreg[28,1]"
 
 
 define token opbyte (8)
@@ -396,7 +396,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 }
 
 # BRK native.
-:BRK $unused8    is (ctx_EF=0 & op=0x00); unused8
+:BRK $unused8    is (ctx_EF=0 & ctx_MF & ctx_XF & op=0x00); unused8
 {
     local this_pc_full:3 = inst_start;
     local this_pc:2 = this_pc_full:2;
@@ -404,7 +404,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 
     push8_native(PBR);
     push16_native(pc_inc);
-    push_status_native();
+    push_status_native(ctx_MF, ctx_XF);
     IF = 1;
     DF = 0;
     PBR = 0;
@@ -494,7 +494,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 }
 
 # COP native.
-:COP $unused8    is (ctx_EF=0 & op=0x02); unused8
+:COP $unused8    is (ctx_EF=0 & ctx_MF & ctx_XF & op=0x02); unused8
 {
     local this_pc_full:3 = inst_start;
     local this_pc:2 = this_pc_full:2;
@@ -502,7 +502,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 
     push8_native(PBR);
     push16_native(pc_inc);
-    push_status_native();
+    push_status_native(ctx_MF, ctx_XF);
     IF = 1;
     DF = 0;
     PBR = 0;
@@ -1158,9 +1158,9 @@ macro do_lsr16(_out, _data) {
 }
 
 # PHP native.
-:PHP    is (ctx_EF=0 & op=0x08)
+:PHP    is (ctx_EF=0 & ctx_MF & ctx_XF & op=0x08)
 {
-    push_status_native();
+    push_status_native(ctx_MF, ctx_XF);
 }
 # PHP emulation.
 :PHP    is (ctx_EF=1 & op=0x08)
