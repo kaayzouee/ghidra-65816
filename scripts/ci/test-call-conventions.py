@@ -11,7 +11,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 # Base address is 0x808000 (bank $80). The caller passes values in A/C, X, and Y,
 # calls $8100 with JSR and $808200 with JSL, then stores each return value.
-ROM = bytearray([0xEA] * 0xD00)
+ROM = bytearray([0xEA] * 0x10200)
 ROM[0x0000:0x001A] = bytes.fromhex(
     "a9 11 a2 03 a0 04 20 00 81 8d 00 03 "
     "a9 42 a2 05 a0 06 22 00 82 80 8d 01 03 60"
@@ -88,6 +88,25 @@ ROM[0x0C80:0x0C91] = bytes.fromhex(
     "c2 20 a9 34 12 5b e2 20 4b ab 38 f8 78 b8 a9 00 6b"
 )
 
+# Test volatile branch flags after a far call. STZ does not modify flags, so
+# subsequent branches still observe the call's outgoing status values. ADC then
+# consumes DF/CF, and PHP makes the remaining status bits observable as a byte.
+ROM[0x0D00:0x0D23] = bytes.fromhex(
+    "22 80 8c 80 "
+    "d0 03 9c 50 03 "
+    "b0 03 9c 51 03 "
+    "30 03 9c 52 03 "
+    "70 03 9c 53 03 "
+    "69 01 8d 54 03 08 68 8d 55 03 60"
+)
+
+# The caller is in bank $80 and calls a far callee in bank $81. PHK/PLA after
+# RTL records the caller's PBR, testing that the call restores the program bank.
+ROM[0x0D80:0x0D8A] = bytes.fromhex(
+    "22 00 81 81 4b 68 8d 44 03 60"
+)
+ROM[0x10100:0x10103] = bytes.fromhex("a9 33 6b")
+
 
 def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
     values: list[int] = []
@@ -148,7 +167,7 @@ def main() -> None:
             "near=__near", "far=__far", "near16=__near", "far16=__far",
             "nearVoid=__near", "farVoid=__far",
             "nearEmu=__near", "farEmu=__far", "nestedWrapper=__far",
-            "registerEffectsCallee=__far",
+            "registerEffectsCallee=__far", "crossBankCallee=__far",
         ):
             if marker not in result:
                 raise AssertionError("Functions did not retain selected conventions:\n" + result)
@@ -195,8 +214,17 @@ def main() -> None:
             "=== registerEffectsCaller decompile ===\n"
         )[2].partition("=== registerEffectsCallee decompile ===\n")[0]
         register_effects_callee = result.partition(
-            "=== registerEffectsCallee decompile ===\n"
-        )[2].partition("=== emulationCaller decompile ===\n")[0]
+            "=== registerEffectsCallee decompile ===\\n"
+        )[2].partition("=== statusEffectsCaller decompile ===\\n")[0]
+        status_effects_caller = result.partition(
+            "=== statusEffectsCaller decompile ===\\n"
+        )[2].partition("=== crossBankCaller decompile ===\\n")[0]
+        cross_bank_caller = result.partition(
+            "=== crossBankCaller decompile ===\\n"
+        )[2].partition("=== crossBankCallee decompile ===\\n")[0]
+        cross_bank_callee = result.partition(
+            "=== crossBankCallee decompile ===\\n"
+        )[2].partition("=== emulationCaller decompile ===\\n")[0]
         emulation_caller = result.partition("=== emulationCaller decompile ===\n")[2].partition(
             "=== nearEmu decompile ===\n"
         )[0]
@@ -207,7 +235,8 @@ def main() -> None:
         if not all((
             caller, near, far, caller16, near16, far16, caller_void, near_void, far_void,
             nested_caller, nested_wrapper, stack_data_caller, register_effects_caller,
-            register_effects_callee, emulation_caller, near_emu, far_emu
+            register_effects_callee, status_effects_caller, cross_bank_caller,
+            cross_bank_callee, emulation_caller, near_emu, far_emu
         )):
             raise AssertionError("Headless test omitted one or more decompilations:\n" + result)
 
@@ -378,6 +407,43 @@ def main() -> None:
                 + register_effects_callee
             )
 
+        # These tests exercise flags through actual post-call instructions.
+        # STZ does not modify flags, so each branch consumes the outgoing flag
+        # value from the far call. ADC consumes DF, and PHP exposes IF.
+        for flag_name in ("extraout_ZF", "extraout_CF", "extraout_NF", "extraout_VF"):
+            if flag_name not in status_effects_caller:
+                raise AssertionError(
+                    f"Expected caller-clobbered {flag_name} after JSL:\n"
+                    + status_effects_caller
+                )
+        if "extraout_DF" not in status_effects_caller:
+            raise AssertionError(
+                "ADC after JSL did not consume caller-clobbered DF:\n"
+                + status_effects_caller
+            )
+        if "extraout_IF" not in status_effects_caller:
+            raise AssertionError(
+                "PHP after JSL did not expose caller-clobbered IF:\n"
+                + status_effects_caller
+            )
+
+        # Cross-bank JSL/RTL must restore PBR to the caller's bank. The metadata
+        # test covers the declaration; PHK/PLA makes the restored PBR observable.
+        if "crossBankCallee(" not in cross_bank_caller or "0x344" not in cross_bank_caller:
+            raise AssertionError(
+                "Cross-bank caller did not use the PBR observation store:\n"
+                + cross_bank_caller
+            )
+        if "extraout_PBR" in cross_bank_caller:
+            raise AssertionError(
+                "PBR is modeled as caller-clobbered after RTL:\n" + cross_bank_caller
+            )
+        if not ("unaff_PBR" in cross_bank_caller or "0x80" in cross_bank_caller):
+            raise AssertionError(
+                "Cross-bank call did not restore the caller's PBR value:\n"
+                + cross_bank_caller
+            )
+
         # Emulation mode is a separate context, not just another native-mode
         # caller. Verify argument/return recovery and the JSR/JSL stack bytes.
         for name in ("near_emu_fn(", "far_emu_fn("):
@@ -451,6 +517,12 @@ def main() -> None:
         print(register_effects_caller)
         print("=== registerEffectsCallee ===")
         print(register_effects_callee)
+        print("=== statusEffectsCaller ===")
+        print(status_effects_caller)
+        print("=== crossBankCaller ===")
+        print(cross_bank_caller)
+        print("=== crossBankCallee ===")
+        print(cross_bank_callee)
         print("=== emulationCaller ===")
         print(emulation_caller)
         print("=== nearEmu ===")
