@@ -438,7 +438,7 @@ RefAbsLongIdxX: !>$imm24,"X"    is imm24 & IdxX  {
 
 # Direct page.
 # DP access may wrap in emulation mode.
-RefDP: <$imm8    is imm8 & (ctx_EF=0 | ctx_EF=1) {
+RefDP: <$imm8    is imm8 & ctx_EF {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8);
     local ref_lo:3; ref_direct(ref_lo, offset, ctx_EF);
@@ -448,7 +448,7 @@ RefDP: <$imm8    is imm8 & (ctx_EF=0 | ctx_EF=1) {
 
 # Direct page indexed by X.
 # DP access may wrap in emulation mode.
-RefDPIdxX: <$imm8,"X"    is imm8 & IdxX & (ctx_EF=0 | ctx_EF=1) {
+RefDPIdxX: <$imm8,"X"    is imm8 & IdxX & ctx_EF {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8) + zext(IdxX);
     local ref_lo:3; ref_direct(ref_lo, offset, ctx_EF);
@@ -458,7 +458,7 @@ RefDPIdxX: <$imm8,"X"    is imm8 & IdxX & (ctx_EF=0 | ctx_EF=1) {
 
 # Direct page indexed by Y.
 # DP access may wrap in emulation mode.
-RefDPIdxY: <$imm8,"Y"    is imm8 & IdxY & (ctx_EF=0 | ctx_EF=1) {
+RefDPIdxY: <$imm8,"Y"    is imm8 & IdxY & ctx_EF {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8) + zext(IdxY);
     local ref_lo:3; ref_direct(ref_lo, offset, ctx_EF);
@@ -468,7 +468,7 @@ RefDPIdxY: <$imm8,"Y"    is imm8 & IdxY & (ctx_EF=0 | ctx_EF=1) {
 
 # Direct page indexed by X, indirect.
 # DP access may wrap in emulation mode.
-RefDPIdxInd: (<$imm8,"X")    is imm8 & IdxX & (ctx_EF=0 | ctx_EF=1) {
+RefDPIdxInd: (<$imm8,"X")    is imm8 & IdxX & ctx_EF {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8) + zext(IdxX);
 
@@ -484,7 +484,7 @@ RefDPIdxInd: (<$imm8,"X")    is imm8 & IdxX & (ctx_EF=0 | ctx_EF=1) {
 
 # Direct page indirect.
 # DP access may wrap in emulation mode.
-RefDPInd: (<$imm8)    is imm8 & (ctx_EF=0 | ctx_EF=1) {
+RefDPInd: (<$imm8)    is imm8 & ctx_EF {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8);
 
@@ -515,7 +515,7 @@ RefDPIndLong: [<$imm8]    is imm8  {
 
 # Direct page indirect, indexed by Y.
 # DP access may wrap in emulation mode.
-RefDPIndIdx: (<$imm8),"Y"    is imm8 & IdxY & (ctx_EF=0 | ctx_EF=1) {
+RefDPIndIdx: (<$imm8),"Y"    is imm8 & IdxY & ctx_EF {
     local offset8:1 = imm8;
     local offset:4 = zext(offset8);
 
