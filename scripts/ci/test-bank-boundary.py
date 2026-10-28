@@ -55,12 +55,12 @@ def main() -> None:
         )
         if completed.returncode:
             raise RuntimeError(
-                f"analyzeHeadless failed with exit code {completed.returncode}:\\n"
+                f"analyzeHeadless failed with exit code {completed.returncode}:\n"
                 f"{completed.stdout}"
             )
         if not output.is_file():
             raise AssertionError(
-                "Headless bank-boundary script produced no output:\\n" + completed.stdout
+                "Headless bank-boundary script produced no output:\n" + completed.stdout
             )
 
         result = output.read_text(encoding="utf-8").strip()
@@ -87,15 +87,15 @@ def main() -> None:
             raise AssertionError(
                 "Bank-boundary characterization changed. If the language now supports "
                 "wrapped instruction fetch, replace this limitation check with conformance "
-                f"assertions.\\nExpected current limitation: {expected_limitation}\\n"
-                f"Observed: {observed}\\nHeadless output:\\n{completed.stdout}"
+                f"assertions.\nExpected current limitation: {expected_limitation}\n"
+                f"Observed: {observed}\nHeadless output:\n{completed.stdout}"
             )
 
         print(
             "Known bank-boundary limitation reproduced: "
-            f"LDA at $00:FFFF reads $${LINEAR_OPERAND:02X} from $01:0000 "
-            f"instead of wrapped $${WRAPPED_OPERAND:02X} from $00:0000; "
-            f"fall-through is $${LINEAR_FALLTHROUGH:06X} instead of $00:0001."
+            f"LDA at $00:FFFF reads ${LINEAR_OPERAND:02X} from $01:0000 "
+            f"instead of wrapped ${WRAPPED_OPERAND:02X} from $00:0000; "
+            f"fall-through is ${LINEAR_FALLTHROUGH:06X} instead of $00:0001."
         )
 
 
