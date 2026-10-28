@@ -11,39 +11,35 @@ import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryBlock;
 
 /**
- * Characterize 65816 instruction-byte fetch at $xx:FFFF.
+ * Characterize 65816 instruction-byte fetch and fall-through at program-bank boundaries.
  *
- * The test maps LDA immediate at $00:FFFF, puts the architecturally wrapped
- * operand byte at $00:0000, and leaves a conflicting byte at linear $01:0000.
- * The current 24-bit PC model is expected to consume the linear byte instead.
+ * Three instructions contrast bytes in the next linear bank with distinct bytes at the
+ * architecturally wrapped start of their current bank:
+ * - LDA absolute at $00:FFFE (three bytes)
+ * - LDA immediate at $02:FFFF (two bytes)
+ * - NOP at $04:FFFF (one byte)
  */
 public class G65816BankBoundaryCheck extends GhidraScript {
-    @Override
-    protected void run() throws Exception {
-        String[] args = getScriptArgs();
-        if (args.length != 1) {
-            throw new IllegalArgumentException("Expected output path");
+    private MemoryBlock createExecutableBlock(
+            Memory memory, String name, long start, int length, byte initialValue)
+            throws Exception {
+        MemoryBlock block = memory.createInitializedBlock(
+            name, toAddr(start), length, initialValue, monitor, false);
+        block.setRead(true);
+        block.setExecute(true);
+        return block;
+    }
+
+    private void setBytes(Memory memory, long start, byte[] bytes) throws Exception {
+        for (int i = 0; i < bytes.length; i++) {
+            memory.setByte(toAddr(start + i), bytes[i]);
         }
+    }
 
-        Memory memory = currentProgram.getMemory();
-        Address wrappedOperandAddress = toAddr(0x000000);
-        MemoryBlock lowBank = memory.createInitializedBlock(
-            "bank00-low", wrappedOperandAddress, 2, (byte) 0, monitor, false);
-        lowBank.setRead(true);
-        lowBank.setExecute(true);
-        memory.setByte(wrappedOperandAddress, (byte) 0x42);
-        memory.setByte(toAddr(0x000001), (byte) 0xea);
-
-        Address entry = toAddr(0x00ffff);
-        Register contextRegister = currentProgram.getLanguage().getContextBaseRegister();
-        RegisterValue context = new RegisterValue(contextRegister);
-        context = context.assign(
-            currentProgram.getLanguage().getRegister("ctx_MF"), BigInteger.ONE);
-        context = context.assign(
-            currentProgram.getLanguage().getRegister("ctx_XF"), BigInteger.ONE);
-        context = context.assign(
-            currentProgram.getLanguage().getRegister("ctx_EF"), BigInteger.ONE);
-
+    private void disassembleAndPrint(
+            PrintStream out, Memory memory, long entryOffset, long wrappedAddress, String label,
+            RegisterValue context) throws Exception {
+        Address entry = toAddr(entryOffset);
         DisassembleCommand command = new DisassembleCommand(entry, null, false);
         command.setInitialContext(context);
         if (!command.applyTo(currentProgram, monitor)) {
@@ -56,17 +52,56 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             throw new AssertionError("No instruction decoded at " + entry);
         }
         byte[] bytes = instruction.getBytes();
-        if (bytes.length < 2) {
-            throw new AssertionError("Expected immediate LDA to be at least two bytes");
+        Address fallThrough = instruction.getFallThrough();
+        out.printf("case=%s|entry=%06x|mnemonic=%s|length=%d|bytes=",
+            label, entry.getOffset(), instruction.getMnemonicString(),
+            instruction.getLength());
+        for (byte value : bytes) {
+            out.printf("%02x", value & 0xff);
+        }
+        out.printf("|wrapped=%02x|fallthrough=%06x%n",
+            memory.getByte(toAddr(wrappedAddress)) & 0xff, fallThrough.getOffset());
+    }
+
+    @Override
+    protected void run() throws Exception {
+        String[] args = getScriptArgs();
+        if (args.length != 1) {
+            throw new IllegalArgumentException("Expected output path");
         }
 
-        Address fallThrough = instruction.getFallThrough();
+        Memory memory = currentProgram.getMemory();
+
+        // The imported ROM starts at $00:FFFE. Its third byte lands at linear $01:0000.
+        // Hardware instruction fetch should wrap that third byte to $00:0000 instead.
+        createExecutableBlock(memory, "bank00-low", 0x000000, 2, (byte) 0);
+        setBytes(memory, 0x000000, new byte[] {0x56, (byte) 0xea});
+
+        // Two-byte instruction at $02:FFFF: linear operand is $99, wrapped operand is $42.
+        createExecutableBlock(memory, "bank02-end", 0x02ffff, 1, (byte) 0xa9);
+        createExecutableBlock(memory, "bank03-start", 0x030000, 1, (byte) 0x99);
+        createExecutableBlock(memory, "bank02-low", 0x020000, 2, (byte) 0);
+        setBytes(memory, 0x020000, new byte[] {0x42, (byte) 0xea});
+
+        // One-byte instruction at $04:FFFF: linear fall-through is $05:0000,
+        // but program-bank-local PC wrap should land at $04:0000.
+        createExecutableBlock(memory, "bank04-end", 0x04ffff, 1, (byte) 0xea);
+        createExecutableBlock(memory, "bank04-low", 0x040000, 2, (byte) 0);
+        setBytes(memory, 0x040000, new byte[] {0x18, (byte) 0xea});
+
+        Register contextRegister = currentProgram.getLanguage().getContextBaseRegister();
+        RegisterValue context = new RegisterValue(contextRegister);
+        context = context.assign(
+            currentProgram.getLanguage().getRegister("ctx_MF"), BigInteger.ONE);
+        context = context.assign(
+            currentProgram.getLanguage().getRegister("ctx_XF"), BigInteger.ONE);
+        context = context.assign(
+            currentProgram.getLanguage().getRegister("ctx_EF"), BigInteger.ONE);
+
         try (PrintStream out = new PrintStream(args[0])) {
-            out.printf(
-                "entry=%06x|mnemonic=%s|length=%d|opcode=%02x|operand=%02x|wrapped=%02x|fallthrough=%06x%n",
-                entry.getOffset(), instruction.getMnemonicString(), instruction.getLength(),
-                bytes[0] & 0xff, bytes[1] & 0xff,
-                memory.getByte(wrappedOperandAddress) & 0xff, fallThrough.getOffset());
+            disassembleAndPrint(out, memory, 0x00fffe, 0x000000, "absolute3", context);
+            disassembleAndPrint(out, memory, 0x02ffff, 0x020000, "immediate2", context);
+            disassembleAndPrint(out, memory, 0x04ffff, 0x040000, "single1", context);
         }
     }
 }
