@@ -78,8 +78,8 @@ public class G65816BankBoundaryCheck extends GhidraScript {
         setBytes(memory, 0x000000, new byte[] {0x56, (byte) 0xea});
 
         // Two-byte instruction at $02:FFFF: linear operand is $99, wrapped operand is $42.
-        createExecutableBlock(memory, "bank02-end", 0x02ffff, 1, (byte) 0xa9);
-        createExecutableBlock(memory, "bank03-start", 0x030000, 1, (byte) 0x99);
+        createExecutableBlock(memory, "bank02-linear", 0x02ffff, 2, (byte) 0);
+        setBytes(memory, 0x02ffff, new byte[] {(byte) 0xa9, (byte) 0x99});
         createExecutableBlock(memory, "bank02-low", 0x020000, 2, (byte) 0);
         setBytes(memory, 0x020000, new byte[] {0x42, (byte) 0xea});
 
