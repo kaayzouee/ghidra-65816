@@ -13,5 +13,5 @@
 
 - Follow the priority order; do not alter SLEIGH semantics until P0's behavior is characterized.
 - Prefer focused headless tests and independent expected results over source-text assertions.
-- Record architectural blockers and evidence here and in [the limitations roadmap](limitations-roadmap.md).
+- Record architectural blockers and evidence here, in [the limitations roadmap](limitations-roadmap.md), and in the [program-bank boundary design note](program-bank-boundary-design.md).
 - 65802 support, SNES loading, automatic vector discovery, and cycle timing remain out of scope.
