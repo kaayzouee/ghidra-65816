@@ -7,7 +7,7 @@
 - **Immediate constants:** immediate operands no longer reference their own instruction bytes ([PR #18](https://github.com/kaayzouee/ghidra-65816/pull/18)).
 - **P-code stack/context fixes:** corrected 16-bit pulls and native status-stack semantics ([PR #20](https://github.com/kaayzouee/ghidra-65816/pull/20)).
 - **Disassembly regressions:** added focused headless checks for instruction lengths, self-references, and decompiler constants ([PR #21](https://github.com/kaayzouee/ghidra-65816/pull/21)).
-- **SingleStepTests:** added a deterministic 120-case CI subset and an optional 25,600-case workflow ([PR #22](https://github.com/kaayzouee/ghidra-65816/pull/22)).
+- **SingleStepTests:** added a deterministic 160-case CI subset and an optional 25,600-case workflow ([PR #22](https://github.com/kaayzouee/ghidra-65816/pull/22)).
 - **WAI/STP:** removed unresolved p-code operations; WAI falls through and STP self-loops ([PR #23](https://github.com/kaayzouee/ghidra-65816/pull/23)).
 - **Bank boundaries:** tests cover selected data accesses, branches, and near/far calls ([PR #13](https://github.com/kaayzouee/ghidra-65816/pull/13), [PR #14](https://github.com/kaayzouee/ghidra-65816/pull/14)).
 - **Optional call conventions:** PR #28 adds manually selected `__near` and `__far` register models. These are illustrative conventions, not a claim of compatibility with a particular compiler ABI.
@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | 1 | Instruction bytes and fall-through can cross the end of a program bank incorrectly. | A headless characterization now contrasts `$00:0000` with linear `$01:0000`; validate it in pinned Ghidra CI, then evaluate the 16-bit code-address/overlay design needed for correct bank wrapping before changing the spec. |
 | 2 | Static analysis cannot always infer M/X/E from unknown stack values, computed Carry at XCE, or conflicting paths. | Propagate only known state; keep uncertain paths manual. |
-| 3 | Test coverage is not proof of complete CPU correctness. | Expand independent test cases and investigate mismatches against the WDC reference and another emulator. |
+| 3 | Test coverage is not proof of complete CPU correctness. | The pinned subset now includes immediate compare and relative branch cases in both modes; investigate any mismatch against the WDC reference and another emulator. |
 | Out of scope | 65802, SNES loader, automatic vector analyzer, cycle timing. | Keep separate unless project scope changes. |
 
 ## Validation
