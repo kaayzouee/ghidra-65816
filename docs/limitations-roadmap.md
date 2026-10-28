@@ -16,8 +16,8 @@
 
 | Priority | Gap | Next step |
 | --- | --- | --- |
-| 1 | Instruction bytes and fall-through can cross the end of a program bank incorrectly. | Pinned Ghidra CI confirms the characterization: the current linear model reads from `$01:0000` rather than wrapping to `$00:0000`. A source-level design review found that standard Ghidra instruction-byte reads use non-wrapping address addition, so SLEIGH-only masking is insufficient; see [program-bank boundary design findings](program-bank-boundary-design.md). |
-| 2 | Static analysis cannot always infer M/X/E from unknown stack values, computed Carry at XCE, or conflicting paths. | Propagate only known state; keep uncertain paths manual. |
+| 1 | Instruction bytes and fall-through can cross the end of a program bank incorrectly. | Pinned Ghidra CI confirms the characterization: the current linear model reads from `$01:0000` rather than wrapping to `$00:0000`. Source review of Ghidra 12.1.4 shows standard instruction-byte reads use non-wrapping address addition; a complete fix needs a supported bank-aware fetch/address integration point, not just SLEIGH masking. See [design findings](program-bank-boundary-design.md). |
+| 2 | Static analysis cannot always infer M/X/E from unknown stack values, computed Carry at XCE, or conflicting paths. | A source regression now guards against treating unknown stacked M/X bits as static decode context. Keep uncertain paths manual; see CPU-state guidance in [README](../README.md). |
 | 3 | Test coverage is not proof of complete CPU correctness. | The 160-case pinned subset, including immediate compare and relative branch cases in both modes, passes CI; investigate any mismatch against the WDC reference and another emulator. |
 | Out of scope | 65802, SNES loader, automatic vector analyzer, cycle timing. | Keep separate unless project scope changes. |
 
