@@ -11,6 +11,7 @@
 - **WAI/STP:** removed unresolved p-code operations; WAI falls through and STP self-loops ([PR #23](https://github.com/kaayzouee/ghidra-65816/pull/23)).
 - **Bank boundaries:** tests cover selected data accesses, branches, and near/far calls ([PR #13](https://github.com/kaayzouee/ghidra-65816/pull/13), [PR #14](https://github.com/kaayzouee/ghidra-65816/pull/14)).
 - **Optional call conventions:** PR #28 adds manually selected `__near` and `__far` register models. These are illustrative conventions, not a claim of compatibility with a particular compiler ABI.
+- **Compiler ABI review:** the OpenSNES `cc65816` ABI uses left-to-right stack arguments and caller cleanup. A proposed upstream Ghidra `stackltr` attribute is not yet merged; the candidate model and 32-bit return limitation are documented separately in [the ABI gap note](opensnes-cc65816-abi-gap.md).
 
 ## Remaining priorities
 
@@ -18,7 +19,7 @@
 | --- | --- | --- |
 | 1 | Instruction bytes and fall-through can cross the end of a program bank incorrectly. | Pinned Ghidra CI confirms the characterization: the current linear model reads from `$01:0000` rather than wrapping to `$00:0000`. Source review of Ghidra 12.1.4 shows standard instruction-byte reads use non-wrapping address addition; a complete fix needs a supported bank-aware fetch/address integration point, not just SLEIGH masking. See [design findings](program-bank-boundary-design.md). |
 | 2 | Static analysis cannot always infer M/X/E from unknown stack values, computed Carry at XCE, or conflicting paths. | A source regression now guards against treating unknown stacked M/X bits as static decode context. Keep uncertain paths manual; see CPU-state guidance in [README](../README.md). |
-| 3 | Test coverage is not proof of complete CPU correctness. | The 160-case pinned subset, including immediate compare and relative branch cases in both modes, passes CI; investigate any mismatch against the WDC reference and another emulator. |
+| 3 | Test coverage is not proof of complete CPU correctness. | The 160-case pinned subset, including immediate compare and relative branch cases in both modes, passed CI run 40628355605; investigate any mismatch against the WDC reference and another emulator. |
 | Out of scope | 65802, SNES loader, automatic vector analyzer, cycle timing. | Keep separate unless project scope changes. |
 
 ## Validation
