@@ -75,6 +75,9 @@ jobs:
       - name: Run headless disassembly regressions
         run: python scripts/ci/test-issue-disassembly.py
 
+      - name: Characterize instruction fetch at program-bank boundary
+        run: python scripts/ci/test-bank-boundary.py
+
       - name: Run absolute-target display regressions
         run: python scripts/ci/test-absolute-target-display.py
 
