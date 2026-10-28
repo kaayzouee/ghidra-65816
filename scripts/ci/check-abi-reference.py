@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the illustrative prototypes against a pinned real compiler ABI snapshot.
 
-This is a compatibility guard, not a claim that the OpenSNES ABI is universal.
+This is a compatibility guard, not a claim that the OpenSNES ABI is universal. It also guards the distinction between stack-based cc65816 calls and this repository's register-only prototypes.
 The reference assembly is copied from OpenSNES's published cc65816 ABI examples.
 """
 
@@ -29,16 +29,38 @@ def main() -> None:
                 f"OpenSNES ABI reference lost expected assembly {fragment!r}"
             )
 
-    pushes = [line for line in assembly.splitlines() if line.strip().startswith("pea.w ")]
-    if len(pushes) != 7:
+    pushes = [
+        line.strip() for line in assembly.splitlines() if line.strip().startswith("pea.w ")
+    ]
+    expected_pushes = [
+        "pea.w 0", "pea.w 100", "pea.w 50", "pea.w 256",
+        "pea.w 0", "pea.w 3", "pea.w 64",
+    ]
+    if pushes != expected_pushes:
         raise AssertionError(
-            f"Expected seven stack-passed arguments in the compiler snapshot; got {len(pushes)}"
+            "OpenSNES argument push order changed. Expected left-to-right source order "
+            f"{expected_pushes}, got {pushes}"
+        )
+
+    ordered_reference = ("lda 6,s", "sbc 4,s", "rtl")
+    positions = [assembly.index(fragment) for fragment in ordered_reference]
+    if positions != sorted(positions):
+        raise AssertionError(
+            "OpenSNES leaf example no longer reads stack arguments in source order "
+            "and returns with RTL"
         )
 
     root = ET.parse(CSPEC).getroot()
+    default_model = root.find("./default_proto/prototype")
+    if default_model is None or default_model.get("name") != "__unknowncall":
+        raise AssertionError("The default ABI must remain conservative (__unknowncall)")
+
     global_return_address = root.find("./returnaddress")
     if global_return_address is None:
         raise AssertionError("Compiler spec is missing the default return-address layout")
+    default_return_varnode = global_return_address.find("./varnode")
+    if default_return_varnode is None or int(default_return_varnode.get("size", "0")) != 2:
+        raise AssertionError("The default near return-address layout unexpectedly changed")
 
     for name, expected_return_size in (("__near", 2), ("__far", 3)):
         model = next(
@@ -49,6 +71,9 @@ def main() -> None:
             raise AssertionError(f"Missing optional prototype {name}")
         if model.get("strategy") != "register":
             raise AssertionError(f"{name} should remain explicitly register-based")
+
+        if model.findall("./input/pentry/addr"):
+            raise AssertionError(f"{name} must not silently acquire stack-based inputs")
 
         input_registers = [
             node.get("name") for node in model.findall("./input/pentry/register")
