@@ -9,7 +9,8 @@
 - **Disassembly regressions:** added focused headless checks for instruction lengths, self-references, and decompiler constants ([PR #21](https://github.com/kaayzouee/ghidra-65816/pull/21)).
 - **SingleStepTests:** added a deterministic 120-case CI subset and an optional 25,600-case workflow ([PR #22](https://github.com/kaayzouee/ghidra-65816/pull/22)).
 - **WAI/STP:** removed unresolved p-code operations; WAI falls through and STP self-loops ([PR #23](https://github.com/kaayzouee/ghidra-65816/pull/23)).
-- **Bank boundaries:** tests cover selected data accesses, branches, and near/far calls ([PR #13](https://github.com/kaayzouee/ghidra-65816/pull/13), [PR #14](https://github.com/kaayzouee/ghidra-65816/pull/14)).\n- **Optional call conventions:** PR #28 adds manually selected `__near` and `__far` register models. These are illustrative conventions, not a claim of compatibility with a particular compiler ABI.
+- **Bank boundaries:** tests cover selected data accesses, branches, and near/far calls ([PR #13](https://github.com/kaayzouee/ghidra-65816/pull/13), [PR #14](https://github.com/kaayzouee/ghidra-65816/pull/14)).
+- **Optional call conventions:** PR #28 adds manually selected `__near` and `__far` register models. These are illustrative conventions, not a claim of compatibility with a particular compiler ABI.
 
 ## Remaining priorities
 
