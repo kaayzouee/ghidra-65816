@@ -16,9 +16,9 @@
 
 | Priority | Gap | Next step |
 | --- | --- | --- |
-| 1 | Instruction bytes and fall-through can cross the end of a program bank incorrectly. | A headless characterization now contrasts `$00:0000` with linear `$01:0000`; validate it in pinned Ghidra CI, then evaluate the 16-bit code-address/overlay design needed for correct bank wrapping before changing the spec. |
+| 1 | Instruction bytes and fall-through can cross the end of a program bank incorrectly. | Pinned Ghidra CI confirms the characterization: the current linear model reads from `$01:0000` rather than wrapping to `$00:0000`. Evaluate a 16-bit code-address/overlay design before changing the spec. |
 | 2 | Static analysis cannot always infer M/X/E from unknown stack values, computed Carry at XCE, or conflicting paths. | Propagate only known state; keep uncertain paths manual. |
-| 3 | Test coverage is not proof of complete CPU correctness. | The pinned subset now includes immediate compare and relative branch cases in both modes; investigate any mismatch against the WDC reference and another emulator. |
+| 3 | Test coverage is not proof of complete CPU correctness. | The 160-case pinned subset, including immediate compare and relative branch cases in both modes, passes CI; investigate any mismatch against the WDC reference and another emulator. |
 | Out of scope | 65802, SNES loader, automatic vector analyzer, cycle timing. | Keep separate unless project scope changes. |
 
 ## Validation
