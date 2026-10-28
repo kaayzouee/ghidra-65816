@@ -203,6 +203,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertIn("# XF = _status[4,1];", body)
         self.assertNotRegex(body, r"(?m)^\s*(?:MF|XF)\s*=")
         self.assertIn("ctx_xx fields can't be used at all in P-code macros", SINC)
+
     def test_interrupt_entry_stacks_state_before_changing_live_flags(self) -> None:
         for mnemonic in ("BRK", "COP"):
             for mode, context in (("native", "ctx_EF=0"), ("emulation", "ctx_EF=1")):
