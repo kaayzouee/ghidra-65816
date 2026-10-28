@@ -187,6 +187,23 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
                 self.assertIn("XHigh = 0;", body)
                 self.assertIn("YHigh = 0;", body)
 
+    def test_native_status_pull_does_not_assign_unknown_width_to_decode_context(self) -> None:
+        match = re.search(
+            r"macro pull_status_native\\(_status\\) \\{(.*?)\\n\\}",
+            MEMACCESS,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(1)
+
+        # PLP/RTI read the status byte at runtime. Those values cannot be
+        # converted into static decode context by a p-code macro, so width
+        # context remains a manual analysis input after an unknown stack pull.
+        self.assertIn("# MF = _status[5,1];", body)
+        self.assertIn("# XF = _status[4,1];", body)
+        self.assertNotRegex(body, r"(?m)^\\s*(?:MF|XF)\\s*=")
+        self.assertIn("ctx_xx fields can't be used at all in P-code macros", SINC)
+
     def test_interrupt_entry_stacks_state_before_changing_live_flags(self) -> None:
         for mnemonic in ("BRK", "COP"):
             for mode, context in (("native", "ctx_EF=0"), ("emulation", "ctx_EF=1")):
