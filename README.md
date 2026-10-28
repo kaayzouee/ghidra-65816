@@ -29,6 +29,7 @@ Use **Processor Options...** for `MF`, `XF`, and `EF`; use **Set Register Values
 
 - **Decoding:** broad opcode coverage. Branch, data-access, and near/far-call bank-boundary cases have regression tests.
 - **P-code:** regression-tested stack, status, arithmetic, control-flow, and context behavior.
+- **Calling conventions:** optional `__near`/`__far` are illustrative register-only models, not the OpenSNES `cc65816` stack ABI. See the [ABI modelling gap](docs/opensnes-cc65816-abi-gap.md).
 - **Immediate operands:** represented as constants for decompiler propagation.
 - **Tests:** source checks, pinned SLEIGH compilation, headless disassembly, runtime P-code tests, and a bounded 160-case SingleStepTests subset.
 
