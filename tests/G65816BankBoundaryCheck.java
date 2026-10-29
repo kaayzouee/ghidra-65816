@@ -6,6 +6,12 @@ import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.lang.RegisterValue;
+import ghidra.program.model.lang.ProcessorContext;
+import ghidra.program.model.lang.Language;
+import ghidra.program.model.lang.InstructionPrototype;
+import ghidra.program.model.lang.InstructionContext;
+import ghidra.program.model.mem.MemBuffer;
+import ghidra.program.model.scalar.Scalar;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryBlock;
@@ -91,6 +97,166 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             applied ? 1 : 0, status.replace('|', '/').replace(' ', '_'));
     }
 
+    /**
+     * Experimental parser-only adapter: fetch instruction bytes from the same PBR while
+     * wrapping the low 16-bit PC. This proves byte selection is possible at the Language.parse
+     * boundary; it does not fix the normal disassembler or Ghidra's contiguous code-unit model.
+     */
+    private static class BankWrappedMemBuffer implements MemBuffer {
+        private final Memory memory;
+        private final Address start;
+
+        BankWrappedMemBuffer(Memory memory, Address start) {
+            this.memory = memory;
+            this.start = start;
+        }
+
+        private Address addressAt(int offset) {
+            long bankBase = start.getOffset() & ~0xffffL;
+            long pc = (start.getOffset() + offset) & 0xffffL;
+            return start.getAddressSpace().getAddress(bankBase | pc);
+        }
+
+        @Override
+        public byte getByte(int offset) throws ghidra.program.model.mem.MemoryAccessException {
+            return memory.getByte(addressAt(offset));
+        }
+
+        @Override
+        public int getBytes(byte[] bytes, int offset) {
+            int count = 0;
+            for (int i = 0; i < bytes.length; i++) {
+                try {
+                    bytes[i] = getByte(offset + i);
+                    count++;
+                }
+                catch (ghidra.program.model.mem.MemoryAccessException e) {
+                    break;
+                }
+            }
+            return count;
+        }
+
+        @Override public Address getAddress() { return start; }
+        @Override public Memory getMemory() { return memory; }
+        @Override public boolean isBigEndian() { return false; }
+
+        @Override
+        public short getShort(int offset) throws ghidra.program.model.mem.MemoryAccessException {
+            return (short) readUnsigned(offset, 2);
+        }
+
+        @Override
+        public int getInt(int offset) throws ghidra.program.model.mem.MemoryAccessException {
+            return (int) readUnsigned(offset, 4);
+        }
+
+        @Override
+        public long getLong(int offset) throws ghidra.program.model.mem.MemoryAccessException {
+            return readUnsigned(offset, 8);
+        }
+
+        @Override
+        public BigInteger getBigInteger(int offset, int size, boolean signed)
+                throws ghidra.program.model.mem.MemoryAccessException {
+            if (size < 1 || size > 8) {
+                throw new IllegalArgumentException("Unsupported test read size: " + size);
+            }
+            BigInteger value = BigInteger.ZERO;
+            for (int i = size - 1; i >= 0; i--) {
+                value = value.shiftLeft(8).or(BigInteger.valueOf(getByte(offset + i) & 0xff));
+            }
+            if (signed && value.testBit(size * 8 - 1)) {
+                value = value.subtract(BigInteger.ONE.shiftLeft(size * 8));
+            }
+            return value;
+        }
+
+        private long readUnsigned(int offset, int size)
+                throws ghidra.program.model.mem.MemoryAccessException {
+            long value = 0;
+            for (int i = size - 1; i >= 0; i--) {
+                value = (value << 8) | (getByte(offset + i) & 0xffL);
+            }
+            return value;
+        }
+    }
+
+    /** Minimal fixed context used only to invoke Language.parse with the test's M/X/E state. */
+    private static class FixedProcessorContext implements ProcessorContext {
+        private final Language language;
+        private final RegisterValue baseValue;
+
+        FixedProcessorContext(Language language, RegisterValue baseValue) {
+            this.language = language;
+            this.baseValue = baseValue;
+        }
+
+        @Override public Register getBaseContextRegister() {
+            return language.getContextBaseRegister();
+        }
+        @Override public java.util.List<Register> getRegisters() {
+            return language.getRegisters();
+        }
+        @Override public Register getRegister(String name) {
+            return language.getRegister(name);
+        }
+        @Override public RegisterValue getRegisterValue(Register register) {
+            if (register == null || baseValue == null) return null;
+            if (register.equals(baseValue.getRegister())) return baseValue;
+            return baseValue.getRegisterValue(register);
+        }
+        @Override public BigInteger getValue(Register register, boolean signed) {
+            RegisterValue value = getRegisterValue(register);
+            if (value == null || !value.hasAnyValue()) return null;
+            BigInteger result = value.getUnsignedValueIgnoreMask();
+            if (signed && result.testBit(register.getBitLength() - 1)) {
+                result = result.subtract(BigInteger.ONE.shiftLeft(register.getBitLength()));
+            }
+            return result;
+        }
+        @Override public boolean hasValue(Register register) {
+            RegisterValue value = getRegisterValue(register);
+            return value != null && value.hasAnyValue();
+        }
+        @Override public void setValue(Register register, BigInteger value) {
+            throw new UnsupportedOperationException("Fixed test context");
+        }
+        @Override public void setRegisterValue(RegisterValue value) {
+            throw new UnsupportedOperationException("Fixed test context");
+        }
+        @Override public void clearRegister(Register register) {
+            throw new UnsupportedOperationException("Fixed test context");
+        }
+    }
+
+    private void probeWrappedParser(PrintStream out, Memory memory, RegisterValue context)
+            throws Exception {
+        Address entry = toAddr(0x02ffff);
+        BankWrappedMemBuffer buffer = new BankWrappedMemBuffer(memory, entry);
+        FixedProcessorContext processorContext =
+            new FixedProcessorContext(currentProgram.getLanguage(), context);
+        InstructionPrototype prototype =
+            currentProgram.getLanguage().parse(buffer, processorContext, false);
+        InstructionContext instructionContext =
+            prototype.getParserContext(buffer, processorContext);
+        Object[] inputObjects = prototype.getInputObjects(instructionContext);
+        long operand = -1;
+        for (Object input : inputObjects) {
+            if (input instanceof Scalar) {
+                operand = ((Scalar) input).getUnsignedValue();
+                break;
+            }
+        }
+        out.printf("case=parserprobe|length=%d|operand=%x|wrapped_byte=%02x%n",
+            prototype.getLength(), operand, buffer.getByte(1) & 0xff);
+        if (prototype.getLength() != 2 || operand != 0x42) {
+            throw new AssertionError(
+                "Bank-wrapped Language.parse probe failed: expected LDA #$42, length 2; got " +
+                prototype.getLength() + " and operand 0x" + Long.toHexString(operand));
+        }
+    }
+
     @Override
     protected void run() throws Exception {
         String[] args = getScriptArgs();
@@ -131,6 +297,7 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             disassembleAndPrint(out, memory, 0x02ffff, 0x020000, "immediate2", context);
             disassembleAndPrint(out, memory, 0x04ffff, 0x040000, "single1", context);
             checkBankStartCoexistence(out, context);
+            probeWrappedParser(out, memory, context);
         }
     }
 }
