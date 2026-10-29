@@ -63,10 +63,13 @@ def main() -> None:
 
         actual = {}
         coexistence_diagnostics = {}
+        parser_probe = None
         for line in output.read_text(encoding="utf-8").splitlines():
             fields = dict(field.split("=", 1) for field in line.split("|"))
             case = fields.pop("case")
-            if case == "coexist":
+            if case == "parserprobe":
+                parser_probe = fields
+            elif case == "coexist":
                 actual[case] = {"coexists": fields["coexists"] == "1"}
                 coexistence_diagnostics = fields
             else:
@@ -78,6 +81,22 @@ def main() -> None:
                     "wrapped": int(fields["wrapped"], 16),
                     "fallthrough": int(fields["fallthrough"], 16),
                 }
+
+        if parser_probe is None:
+            raise AssertionError("Bank-wrapped Language.parse prototype produced no result")
+        if (
+            int(parser_probe["length"]) != 2
+            or int(parser_probe["operand"], 16) != 0x42
+            or int(parser_probe["wrapped_byte"], 16) != 0x42
+        ):
+            raise AssertionError(
+                "Custom bank-wrapped MemBuffer did not parse LDA #$42: "
+                f"{parser_probe}"
+            )
+        print(
+            "PARSER PROTOTYPE: custom bank-wrapped MemBuffer parses LDA #$42 "
+            "correctly; normal disassembly still uses Ghidra's standard buffer."
+        )
 
         status, message = classify_observation(
             actual, require_hardware=REQUIRE_HARDWARE
