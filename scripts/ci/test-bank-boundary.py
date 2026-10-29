@@ -92,6 +92,7 @@ def main() -> None:
                 "wrapped_byte": 0x56,
                 "word_offset": 1,
                 "word": 0x5634,
+                "parser_next": 0x010001,
             },
             "immediate2": {
                 "entry": 0x02FFFF,
@@ -101,6 +102,7 @@ def main() -> None:
                 "wrapped_byte": 0x42,
                 "word_offset": 0,
                 "word": 0x42A9,
+                "parser_next": 0x030001,
                 "operand": 0x42,
             },
             "single1": {
@@ -111,6 +113,7 @@ def main() -> None:
                 "wrapped_byte": 0x18,
                 "word_offset": 0,
                 "word": 0x18EA,
+                "parser_next": 0x050000,
             },
         }
         if set(parser_probes) != set(expected_parser_probes):
@@ -131,6 +134,7 @@ def main() -> None:
                 or observed["bytes"] != expected["bytes"]
                 or int(observed["wrapped_byte"], 16) != expected["wrapped_byte"]
                 or int(observed["word"], 16) != expected["word"]
+                or int(observed["parser_next"], 16) != expected["parser_next"]
             ):
                 raise AssertionError(
                     f"Parser probe {label} mismatched expected wrapped bytes: "
@@ -147,8 +151,9 @@ def main() -> None:
         print(
             "PARSER PROTOTYPE: custom bank-wrapped MemBuffer parsed one-, two-, "
             "and three-byte boundary instructions with the expected wrapped bytes; "
-            "LDA #$42 consumed its operand from the wrapped address. Normal "
-            "disassembly still uses Ghidra's standard buffer."
+            "LDA #$42 consumed its operand from the wrapped address. Even with "
+            "wrapped bytes, parser inst_next remains linear; normal disassembly "
+            "still uses Ghidra's standard buffer."
         )
 
         status, message = classify_observation(
