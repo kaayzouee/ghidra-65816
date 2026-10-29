@@ -16,7 +16,6 @@ ROM = bytes.fromhex("ad 34 12")
 ENTRY = 0x00FFFE
 
 
-
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="65816-bank-boundary-") as temporary:
         work = Path(temporary)
@@ -79,7 +78,6 @@ def main() -> None:
             actual, require_hardware=REQUIRE_HARDWARE
         )
         print(f"{status}: {message}")
-
 
 
 if __name__ == "__main__":
