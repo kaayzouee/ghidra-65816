@@ -40,6 +40,10 @@ Ghidra [Discussion #9349](https://github.com/NationalSecurityAgency/ghidra/discu
 
 The validation workflow now exposes a manual `require_bank_wrap` input. Run **Actions → SLEIGH validation → Run workflow** with that input checked to require hardware-correct output; the current implementation is expected to fail this strict gate until P0 is actually fixed. Normal push/PR CI remains diagnostic and passes only for either the known current behavior or the correct hardware behavior.
 
+## Parser-only prototype
+
+A headless probe now passes a test-only `MemBuffer` to `Language.parse` that wraps byte offsets within the instruction's starting bank. The probe asserts that an `LDA` at `$02:FFFF` can be parsed with operand `$42` from `$02:0000`, rather than the linear byte at `$03:0000`. The normal disassembler continues to use Ghidra's standard buffer; this is an API feasibility probe, not a fix. The instruction-listing extent and next-address behavior still require a supported integration point, and the prototype is awaiting CI validation.
+
 ## Decision
 
 Do not change `658xx.sinc`, the default address space, or the PC register layout in isolation. The correct next step for a complete fix is to prototype or request a supported Ghidra-level bank-aware instruction-fetch/address mechanism, then validate instruction decoding at both `$xx:FFFE` and `$xx:FFFF` for one-, two-, and three-byte instructions. Keep the current model until that mechanism is available; partial masking would make some branch flows appear correct while leaving decoded operands incorrect.
