@@ -35,7 +35,7 @@ Runtime regressions cover arithmetic and flags, status stack behavior, P-code st
 
 Normal CI runs `scripts/ci/test-bank-boundary.py` diagnostically: it accepts either the currently reproduced limitation or true hardware-correct behavior, while rejecting unexpected results. To require the real fix, open **Actions → SLEIGH validation → Run workflow**, enable `require_bank_wrap`, and run it. That input sets `GHIDRA_BANK_WRAP_REQUIRED=1`; the workflow must fail until instruction bytes and fall-through match the hardware expectations for the 1-, 2-, and 3-byte boundary cases.
 
-This strict gate is only a test gate, not a workaround. The current SLEIGH module still cannot make Ghidra's standard memory buffer fetch bytes from a wrapped program-bank address or represent a discontinuous instruction extent. See [the design findings](docs/program-bank-boundary-design.md) and the [upstream support request draft](docs/ghidra-bank-fetch-support-request.md).
+This strict gate is only a test gate, not a workaround. The current SLEIGH module still cannot make Ghidra's standard memory buffer fetch bytes from a wrapped program-bank address or represent a discontinuous instruction extent. See [the design findings](docs/program-bank-boundary-design.md). An upstream feature request has now been filed.
 
 The optional `.github/workflows/singlestep-full.yml` workflow runs 25,600 cases. It is not access-controlled by YAML alone: configure GitHub Actions workflow execution protection under **Settings → Actions → Policies** for this workflow, allowing only `workflow_dispatch` and maintainers/admins.
 
