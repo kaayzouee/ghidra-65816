@@ -1,6 +1,6 @@
 # Limitations and roadmap
 
-**Updated:** 2026-10-28 · Based on merged PRs, current source, and the bank-boundary characterization work.
+**Updated:** 2026-10-29 · Based on merged PRs, current source, and the bank-boundary characterization work.
 
 ## Recently completed
 
