@@ -182,6 +182,35 @@ public class G65816BankBoundaryCheck extends GhidraScript {
         }
     }
 
+    /** Adapts one parsed prototype to the context interface used by operand evaluation. */
+    private static class FixedInstructionContext implements InstructionContext {
+        private final Address address;
+        private final ProcessorContext processorContext;
+        private final MemBuffer buffer;
+        private final ghidra.program.model.lang.ParserContext parserContext;
+
+        FixedInstructionContext(
+                Address address, ProcessorContext processorContext, MemBuffer buffer,
+                ghidra.program.model.lang.ParserContext parserContext) {
+            this.address = address;
+            this.processorContext = processorContext;
+            this.buffer = buffer;
+            this.parserContext = parserContext;
+        }
+
+        @Override public Address getAddress() { return address; }
+        @Override public ghidra.program.model.lang.ProcessorContextView getProcessorContext() {
+            return processorContext;
+        }
+        @Override public MemBuffer getMemBuffer() { return buffer; }
+        @Override public ghidra.program.model.lang.ParserContext getParserContext() {
+            return parserContext;
+        }
+        @Override public ghidra.program.model.lang.ParserContext getParserContext(Address ignored) {
+            return parserContext;
+        }
+    }
+
     /** Minimal fixed context used only to invoke Language.parse with the test's M/X/E state. */
     private static class FixedProcessorContext implements ProcessorContext {
         private final Language language;
@@ -238,8 +267,10 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             new FixedProcessorContext(currentProgram.getLanguage(), context);
         InstructionPrototype prototype =
             currentProgram.getLanguage().parse(buffer, processorContext, false);
-        InstructionContext instructionContext =
+        ghidra.program.model.lang.ParserContext parserContext =
             prototype.getParserContext(buffer, processorContext);
+        InstructionContext instructionContext = new FixedInstructionContext(
+            entry, processorContext, buffer, parserContext);
         Object[] inputObjects = prototype.getInputObjects(instructionContext);
         long operand = -1;
         for (Object input : inputObjects) {
