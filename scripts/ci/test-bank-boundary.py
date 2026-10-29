@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 REQUIRE_HARDWARE = os.environ.get("GHIDRA_BANK_WRAP_REQUIRED") == "1"
 
-ROM = bytes.fromhex("ad 34 12")
+ROM = bytes.fromhex("ad 34 ea")
 ENTRY = 0x00FFFE
 
 
@@ -62,22 +62,29 @@ def main() -> None:
             )
 
         actual = {}
+        coexistence_diagnostics = {}
         for line in output.read_text(encoding="utf-8").splitlines():
             fields = dict(field.split("=", 1) for field in line.split("|"))
             case = fields.pop("case")
-            actual[case] = {
-                "entry": int(fields["entry"], 16),
-                "mnemonic": fields["mnemonic"],
-                "length": int(fields["length"]),
-                "bytes": fields["bytes"],
-                "wrapped": int(fields["wrapped"], 16),
-                "fallthrough": int(fields["fallthrough"], 16),
-            }
+            if case == "coexist":
+                actual[case] = {"coexists": fields["coexists"] == "1"}
+                coexistence_diagnostics = fields
+            else:
+                actual[case] = {
+                    "entry": int(fields["entry"], 16),
+                    "mnemonic": fields["mnemonic"],
+                    "length": int(fields["length"]),
+                    "bytes": fields["bytes"],
+                    "wrapped": int(fields["wrapped"], 16),
+                    "fallthrough": int(fields["fallthrough"], 16),
+                }
 
         status, message = classify_observation(
             actual, require_hardware=REQUIRE_HARDWARE
         )
         print(f"{status}: {message}")
+        if coexistence_diagnostics:
+            print(f"Bank-start coexistence details: {coexistence_diagnostics}")
 
 
 if __name__ == "__main__":
