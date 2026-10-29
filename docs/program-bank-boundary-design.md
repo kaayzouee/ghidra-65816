@@ -30,7 +30,7 @@ Ghidra's [SLEIGH address-space documentation](https://ghidra.re/ghidra_docs/lang
 
 The headless test [`G65816BankBoundaryCheck.java`](../tests/G65816BankBoundaryCheck.java), invoked by [`test-bank-boundary.py`](../scripts/ci/test-bank-boundary.py), now checks one-, two-, and three-byte instructions at `$xx:FFFF` / `$xx:FFFE`, places different bytes at the wrapped same-bank addresses, and records decoded bytes plus fall-through. All three characterization cases passed pinned Ghidra CI run [40629110625](https://github.com/kaayzouee/ghidra-65816/actions/runs/40629110625).
 
-This is a characterization test, not a passing hardware-conformance test. It protects the current, documented limitation from silently changing; once the fetch model is fixed, replace its expected-current-limitation assertions with hardware-correct expectations.
+The runner records both the hardware-correct expected output and the known current output. By default, CI succeeds only when the observed result matches one of those two states: it prints either `PASS` for hardware conformance or `KNOWN LIMITATION` with the observed-vs-expected bytes and fall-through. Setting `GHIDRA_BANK_WRAP_REQUIRED=1` turns the current limitation into a hard failure, so the same fixture can be run as a strict conformance gate when validating a proposed fix.
 
 ## Decision
 
