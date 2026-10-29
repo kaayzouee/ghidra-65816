@@ -45,6 +45,12 @@ Could Ghidra provide a supported processor-language extension point for bank-awa
 
 A language-level instruction-buffer factory may solve byte selection, but the listing/instruction model also needs to represent the instruction extent correctly when its bytes are not a contiguous range in the physical address map. Is there an existing supported extension point or preferred architecture for this?
 
+## Additional API experiment
+
+A test-only `MemBuffer` implementation was passed directly to the public `Language.parse` API in pinned Ghidra 12.1.4. It wraps offsets within the starting bank, and the headless probe successfully parsed `LDA #$42` at `$02:FFFF` using the byte at `$02:0000`. The experiment is in [G65816BankBoundaryCheck.java](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/tests/G65816BankBoundaryCheck.java) and passed [CI run 40804944764](https://github.com/kaayzouee/ghidra-65816/actions/runs/40804944764).
+
+This narrows the required integration point: custom byte selection works when a caller controls the `MemBuffer`, but the normal disassembler constructs its own buffer and the listing still treats instruction extent as contiguous. A complete supported solution needs both a processor/language-level fetch-buffer hook and a representation or mapping strategy for wrapped instruction extent and sequential flow.
+
 ## Related but distinct work
 
 [Discussion #9349, “Context-aware address resolution for banked memory (extending overlays)”](https://github.com/NationalSecurityAgency/ghidra/discussions/9349) proposes making *operand/reference target resolution* depend on processor context. That is related to banked processors, but P0 is earlier in the pipeline: instruction bytes must be correct before constructor selection and instruction-length determination. The two capabilities are complementary, not interchangeable.
