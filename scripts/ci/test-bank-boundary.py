@@ -63,12 +63,13 @@ def main() -> None:
 
         actual = {}
         coexistence_diagnostics = {}
-        parser_probe = None
+        parser_probes = {}
         for line in output.read_text(encoding="utf-8").splitlines():
             fields = dict(field.split("=", 1) for field in line.split("|"))
             case = fields.pop("case")
             if case == "parserprobe":
-                parser_probe = fields
+                label = fields.pop("label")
+                parser_probes[label] = fields
             elif case == "coexist":
                 actual[case] = {"coexists": fields["coexists"] == "1"}
                 coexistence_diagnostics = fields
@@ -82,20 +83,65 @@ def main() -> None:
                     "fallthrough": int(fields["fallthrough"], 16),
                 }
 
-        if parser_probe is None:
-            raise AssertionError("Bank-wrapped Language.parse prototype produced no result")
-        if (
-            int(parser_probe["length"]) != 2
-            or int(parser_probe["operand"], 16) != 0x42
-            or int(parser_probe["wrapped_byte"], 16) != 0x42
-        ):
+        expected_parser_probes = {
+            "absolute3": {
+                "entry": 0x00FFFE,
+                "length": 3,
+                "bytes": "ad3456",
+                "wrapped_offset": 2,
+                "wrapped_byte": 0x56,
+            },
+            "immediate2": {
+                "entry": 0x02FFFF,
+                "length": 2,
+                "bytes": "a942",
+                "wrapped_offset": 1,
+                "wrapped_byte": 0x42,
+                "operand": 0x42,
+            },
+            "single1": {
+                "entry": 0x04FFFF,
+                "length": 1,
+                "bytes": "ea",
+                "wrapped_offset": 1,
+                "wrapped_byte": 0x18,
+            },
+        }
+        if set(parser_probes) != set(expected_parser_probes):
             raise AssertionError(
-                "Custom bank-wrapped MemBuffer did not parse LDA #$42: "
-                f"{parser_probe}"
+                "Expected wrapped parser probes for all instruction lengths; "
+                f"got {sorted(parser_probes)}"
             )
+        for label, expected in expected_parser_probes.items():
+            observed = parser_probes[label]
+            for key in ("length", "wrapped_offset"):
+                if int(observed[key]) != expected[key]:
+                    raise AssertionError(
+                        f"Parser probe {label} has unexpected {key}: "
+                        f"{observed[key]} (expected {expected[key]})"
+                    )
+            if (
+                int(observed["entry"], 16) != expected["entry"]
+                or observed["bytes"] != expected["bytes"]
+                or int(observed["wrapped_byte"], 16) != expected["wrapped_byte"]
+            ):
+                raise AssertionError(
+                    f"Parser probe {label} mismatched expected wrapped bytes: "
+                    f"{observed} versus {expected}"
+                )
+            if "operand" in expected and (
+                observed["operand"] == "none"
+                or int(observed["operand"], 16) != expected["operand"]
+            ):
+                raise AssertionError(
+                    f"Parser probe {label} decoded the wrong wrapped operand: "
+                    f"{observed}"
+                )
         print(
-            "PARSER PROTOTYPE: custom bank-wrapped MemBuffer parses LDA #$42 "
-            "correctly; normal disassembly still uses Ghidra's standard buffer."
+            "PARSER PROTOTYPE: custom bank-wrapped MemBuffer parsed one-, two-, "
+            "and three-byte boundary instructions with the expected wrapped bytes; "
+            "LDA #$42 consumed its operand from the wrapped address. Normal "
+            "disassembly still uses Ghidra's standard buffer."
         )
 
         status, message = classify_observation(
