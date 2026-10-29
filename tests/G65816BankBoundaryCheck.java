@@ -2,6 +2,7 @@ import java.io.PrintStream;
 import java.math.BigInteger;
 
 import ghidra.app.cmd.disassemble.DisassembleCommand;
+import ghidra.app.plugin.processors.sleigh.SleighParserContext;
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.Register;
@@ -262,8 +263,8 @@ public class G65816BankBoundaryCheck extends GhidraScript {
     private void probeWrappedParser(
             PrintStream out, Memory memory, RegisterValue context, String label,
             long entryOffset, int expectedLength, long expectedOperand,
-            int wrappedOffset, int expectedWrappedByte, int wordOffset, int expectedWord)
-            throws Exception {
+            int wrappedOffset, int expectedWrappedByte, int wordOffset, int expectedWord,
+            long expectedParserNext) throws Exception {
         Address entry = toAddr(entryOffset);
         BankWrappedMemBuffer buffer = new BankWrappedMemBuffer(memory, entry);
         FixedProcessorContext processorContext =
@@ -272,6 +273,7 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             currentProgram.getLanguage().parse(buffer, processorContext, false);
         ghidra.program.model.lang.ParserContext parserContext =
             prototype.getParserContext(buffer, processorContext);
+        Address parserNext = ((SleighParserContext) parserContext).getNaddr();
         InstructionContext instructionContext = new FixedInstructionContext(
             entry, processorContext, buffer, parserContext);
         Object[] inputObjects = prototype.getInputObjects(instructionContext);
@@ -294,12 +296,14 @@ public class G65816BankBoundaryCheck extends GhidraScript {
         int wrappedWord = buffer.getShort(wordOffset) & 0xffff;
         String operandText = expectedOperand >= 0 ? Long.toHexString(operand) : "none";
         out.printf(
-            "case=parserprobe|label=%s|entry=%06x|length=%d|operand=%s|wrapped_offset=%d|wrapped_byte=%02x|word_offset=%d|word=%04x|bytes=%s|scalars=%s%n",
+            "case=parserprobe|label=%s|entry=%06x|length=%d|operand=%s|wrapped_offset=%d|wrapped_byte=%02x|word_offset=%d|word=%04x|parser_next=%06x|bytes=%s|scalars=%s%n",
             label, entry.getOffset(), prototype.getLength(), operandText,
-            wrappedOffset, wrappedByte, wordOffset, wrappedWord, parsedBytes, scalarInputs);
+            wrappedOffset, wrappedByte, wordOffset, wrappedWord,
+            parserNext == null ? -1L : parserNext.getOffset(), parsedBytes, scalarInputs);
 
         if (prototype.getLength() != expectedLength || wrappedByte != expectedWrappedByte ||
-                wrappedWord != expectedWord ||
+                wrappedWord != expectedWord || parserNext == null ||
+                parserNext.getOffset() != expectedParserNext ||
                 (expectedOperand >= 0 && operand != expectedOperand)) {
             throw new AssertionError(
                 "Bank-wrapped Language.parse probe failed for " + label +
@@ -307,9 +311,11 @@ public class G65816BankBoundaryCheck extends GhidraScript {
                 Integer.toHexString(expectedWrappedByte) +
                 (expectedOperand >= 0 ? ", operand 0x" + Long.toHexString(expectedOperand) : "") +
                 ", wrapped word 0x" + Integer.toHexString(expectedWord) +
+                ", parser next 0x" + Long.toHexString(expectedParserNext) +
                 "; got length " + prototype.getLength() + ", wrapped byte 0x" +
                 Integer.toHexString(wrappedByte) + ", word 0x" +
-                Integer.toHexString(wrappedWord) +
+                Integer.toHexString(wrappedWord) + ", parser next " +
+                (parserNext == null ? "null" : "0x" + Long.toHexString(parserNext.getOffset())) +
                 ", operand " + operandText + ", bytes " + parsedBytes +
                 ", scalar inputs [" + scalarInputs + "]");
         }
@@ -357,13 +363,13 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             checkBankStartCoexistence(out, context);
             probeWrappedParser(
                 out, memory, context, "absolute3", 0x00fffe, 3, -1, 2, 0x56,
-                1, 0x5634);
+                1, 0x5634, 0x010001);
             probeWrappedParser(
                 out, memory, context, "immediate2", 0x02ffff, 2, 0x42, 1, 0x42,
-                0, 0x42a9);
+                0, 0x42a9, 0x030001);
             probeWrappedParser(
                 out, memory, context, "single1", 0x04ffff, 1, -1, 1, 0x18,
-                0, 0x18ea);
+                0, 0x18ea, 0x050000);
         }
     }
 }
