@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce the known 65816 fetch/fall-through limitation at bank boundaries."""
+"""Characterize and watch for a fix to 65816 program-bank instruction wrapping."""
 
 import os
 from pathlib import Path
@@ -9,34 +9,41 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
-# Three-byte LDA absolute starts at $00:FFFE. Its third byte is at linear $01:0000.
 ROM = bytes.fromhex("ad 34 12")
 ENTRY = 0x00FFFE
 
-EXPECTED = {
+# Hardware expectation: instruction bytes wrap within PBR and fall-through
+# wraps the 16-bit PC without incrementing PBR.
+EXPECTED_HARDWARE = {
     "absolute3": {
-        "entry": 0x00FFFE,
-        "mnemonic": "LDA",
-        "length": 3,
-        "bytes": "ad3412",
-        "wrapped": 0x56,
-        "fallthrough": 0x010001,
+        "entry": 0x00FFFE, "mnemonic": "LDA", "length": 3,
+        "bytes": "ad3456", "wrapped": 0x56, "fallthrough": 0x000001,
     },
     "immediate2": {
-        "entry": 0x02FFFF,
-        "mnemonic": "LDA",
-        "length": 2,
-        "bytes": "a999",
-        "wrapped": 0x42,
-        "fallthrough": 0x030001,
+        "entry": 0x02FFFF, "mnemonic": "LDA", "length": 2,
+        "bytes": "a942", "wrapped": 0x42, "fallthrough": 0x020001,
     },
     "single1": {
-        "entry": 0x04FFFF,
-        "mnemonic": "NOP",
-        "length": 1,
-        "bytes": "ea",
-        "wrapped": 0x18,
-        "fallthrough": 0x050000,
+        "entry": 0x04FFFF, "mnemonic": "NOP", "length": 1,
+        "bytes": "ea", "wrapped": 0x18, "fallthrough": 0x040000,
+    },
+}
+
+# Current known behavior before bank-aware fetch/address support. Accept both
+# this observation and the true hardware result so CI will keep passing once a
+# real fix is implemented rather than locking the old bug in as expected.
+KNOWN_CURRENT_LIMITATION = {
+    "absolute3": {
+        "entry": 0x00FFFE, "mnemonic": "LDA", "length": 3,
+        "bytes": "ad3412", "wrapped": 0x56, "fallthrough": 0x010001,
+    },
+    "immediate2": {
+        "entry": 0x02FFFF, "mnemonic": "LDA", "length": 2,
+        "bytes": "a999", "wrapped": 0x42, "fallthrough": 0x030001,
+    },
+    "single1": {
+        "entry": 0x04FFFF, "mnemonic": "NOP", "length": 1,
+        "bytes": "ea", "wrapped": 0x18, "fallthrough": 0x050000,
     },
 }
 
@@ -99,18 +106,32 @@ def main() -> None:
                 "fallthrough": int(fields["fallthrough"], 16),
             }
 
-        if actual != EXPECTED:
+        if actual == EXPECTED_HARDWARE:
+            print(
+                "PASS: bank-wrapped instruction bytes and fall-through conform "
+                "for one-, two-, and three-byte instructions."
+            )
+        elif actual == KNOWN_CURRENT_LIMITATION:
+            print(
+                "KNOWN LIMITATION: instruction bytes and fall-through advance linearly "
+                "across the PBR boundary. Hardware expects:"
+            )
+            for name in EXPECTED_HARDWARE:
+                observed = actual[name]
+                expected = EXPECTED_HARDWARE[name]
+                print(
+                    f"  {name}: observed bytes={observed['bytes']} "
+                    f"fallthrough=0x{observed['fallthrough']:06X}; "
+                    f"expected bytes={expected['bytes']} "
+                    f"fallthrough=0x{expected['fallthrough']:06X}"
+                )
+        else:
             raise AssertionError(
-                "Bank-boundary characterization changed. Replace the expected-current-limitation "
-                "checks with hardware-conformance assertions if bank-wrapped instruction fetch "
-                f"becomes supported.\nExpected: {EXPECTED}\nObserved: {actual}\n"
+                "Bank-boundary behavior matches neither the known limitation nor the "
+                f"hardware expectations.\nExpected hardware: {EXPECTED_HARDWARE}\n"
+                f"Known limitation: {KNOWN_CURRENT_LIMITATION}\nObserved: {actual}\n"
                 f"Headless output:\n{completed.stdout}"
             )
-
-        print(
-            "Known bank-boundary limitation reproduced for 3-, 2-, and 1-byte instructions: "
-            "instruction bytes and fall-through advance linearly into the next bank."
-        )
 
 
 if __name__ == "__main__":
