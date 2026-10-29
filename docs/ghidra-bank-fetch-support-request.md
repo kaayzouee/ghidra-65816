@@ -47,7 +47,7 @@ A language-level instruction-buffer factory may solve byte selection, but the li
 
 ## Additional API experiment
 
-A test-only `MemBuffer` implementation was passed directly to the public `Language.parse` API in pinned Ghidra 12.1.4. It wraps offsets within the starting bank, and the headless probe successfully parsed `LDA #$42` at `$02:FFFF` using the byte at `$02:0000`. The experiment is in [G65816BankBoundaryCheck.java](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/tests/G65816BankBoundaryCheck.java) and passed [CI run 40804944764](https://github.com/kaayzouee/ghidra-65816/actions/runs/40804944764).
+A test-only `MemBuffer` implementation was passed directly to the public `Language.parse` API in pinned Ghidra 12.1.4. The expanded headless probe covers 3-, 2-, and 1-byte instructions at bank boundaries, checks little-endian word reads across the wrap (`$5634`, `$42A9`, `$18EA`), and verifies that `LDA #$42` at `$02:FFFF` uses the byte at `$02:0000`. The experiment is in [G65816BankBoundaryCheck.java](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/tests/G65816BankBoundaryCheck.java) and the expanded regression passed [CI run 40806375370](https://github.com/kaayzouee/ghidra-65816/actions/runs/40806375370).
 
 This narrows the required integration point: custom byte selection works when a caller controls the `MemBuffer`, but the normal disassembler constructs its own buffer and the listing still treats instruction extent as contiguous. A complete supported solution needs both a processor/language-level fetch-buffer hook and a representation or mapping strategy for wrapped instruction extent and sequential flow.
 
