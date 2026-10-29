@@ -63,6 +63,34 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             memory.getByte(toAddr(wrappedAddress)) & 0xff, fallThrough.getOffset());
     }
 
+    private void checkBankStartCoexistence(
+            PrintStream out, RegisterValue context) throws Exception {
+        Address bank0Instruction = toAddr(0x00fffe);
+        Address bank1Instruction = toAddr(0x010000);
+        DisassembleCommand command = new DisassembleCommand(bank1Instruction, null, false);
+        command.setInitialContext(context);
+
+        boolean applied = false;
+        String status = "not-run";
+        try {
+            applied = command.applyTo(currentProgram, monitor);
+            status = command.getStatusMsg();
+        }
+        catch (Exception exception) {
+            status = exception.getClass().getSimpleName();
+        }
+
+        Instruction bank0 = currentProgram.getListing().getInstructionAt(bank0Instruction);
+        Instruction bank1 = currentProgram.getListing().getInstructionAt(bank1Instruction);
+        boolean bank1IsNop = bank1 != null && "NOP".equals(bank1.getMnemonicString());
+        boolean coexist = bank0 != null && bank1IsNop;
+        out.printf(
+            "case=coexist|coexists=%d|bank0_inst=%d|bank1_inst=%d|bank1_mnemonic=%s|command_applied=%d|command_status=%s%n",
+            coexist ? 1 : 0, bank0 != null ? 1 : 0, bank1 != null ? 1 : 0,
+            bank1 != null ? bank1.getMnemonicString() : "none",
+            applied ? 1 : 0, status.replace('|', '/').replace(' ', '_'));
+    }
+
     @Override
     protected void run() throws Exception {
         String[] args = getScriptArgs();
@@ -102,6 +130,7 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             disassembleAndPrint(out, memory, 0x00fffe, 0x000000, "absolute3", context);
             disassembleAndPrint(out, memory, 0x02ffff, 0x020000, "immediate2", context);
             disassembleAndPrint(out, memory, 0x04ffff, 0x040000, "single1", context);
+            checkBankStartCoexistence(out, context);
         }
     }
 }
