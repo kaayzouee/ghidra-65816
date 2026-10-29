@@ -90,6 +90,8 @@ def main() -> None:
                 "bytes": "ad3456",
                 "wrapped_offset": 2,
                 "wrapped_byte": 0x56,
+                "word_offset": 1,
+                "word": 0x5634,
             },
             "immediate2": {
                 "entry": 0x02FFFF,
@@ -97,6 +99,8 @@ def main() -> None:
                 "bytes": "a942",
                 "wrapped_offset": 1,
                 "wrapped_byte": 0x42,
+                "word_offset": 0,
+                "word": 0x42A9,
                 "operand": 0x42,
             },
             "single1": {
@@ -105,6 +109,8 @@ def main() -> None:
                 "bytes": "ea",
                 "wrapped_offset": 1,
                 "wrapped_byte": 0x18,
+                "word_offset": 0,
+                "word": 0x18EA,
             },
         }
         if set(parser_probes) != set(expected_parser_probes):
@@ -114,7 +120,7 @@ def main() -> None:
             )
         for label, expected in expected_parser_probes.items():
             observed = parser_probes[label]
-            for key in ("length", "wrapped_offset"):
+            for key in ("length", "wrapped_offset", "word_offset"):
                 if int(observed[key]) != expected[key]:
                     raise AssertionError(
                         f"Parser probe {label} has unexpected {key}: "
@@ -124,6 +130,7 @@ def main() -> None:
                 int(observed["entry"], 16) != expected["entry"]
                 or observed["bytes"] != expected["bytes"]
                 or int(observed["wrapped_byte"], 16) != expected["wrapped_byte"]
+                or int(observed["word"], 16) != expected["word"]
             ):
                 raise AssertionError(
                     f"Parser probe {label} mismatched expected wrapped bytes: "
