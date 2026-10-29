@@ -8,6 +8,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
+REQUIRE_HARDWARE = os.environ.get("GHIDRA_BANK_WRAP_REQUIRED") == "1"
 
 ROM = bytes.fromhex("ad 34 12")
 ENTRY = 0x00FFFE
@@ -112,19 +113,26 @@ def main() -> None:
                 "for one-, two-, and three-byte instructions."
             )
         elif actual == KNOWN_CURRENT_LIMITATION:
-            print(
-                "KNOWN LIMITATION: instruction bytes and fall-through advance linearly "
-                "across the PBR boundary. Hardware expects:"
-            )
+            details = []
             for name in EXPECTED_HARDWARE:
                 observed = actual[name]
                 expected = EXPECTED_HARDWARE[name]
-                print(
+                details.append(
                     f"  {name}: observed bytes={observed['bytes']} "
                     f"fallthrough=0x{observed['fallthrough']:06X}; "
                     f"expected bytes={expected['bytes']} "
                     f"fallthrough=0x{expected['fallthrough']:06X}"
                 )
+            message = (
+                "Instruction bytes and fall-through still advance linearly across the "
+                "PBR boundary. Hardware expects:\n" + "\n".join(details)
+            )
+            if REQUIRE_HARDWARE:
+                raise AssertionError(
+                    "GHIDRA_BANK_WRAP_REQUIRED=1, but bank-wrapped fetch is unsupported.\n"
+                    + message
+                )
+            print("KNOWN LIMITATION: " + message)
         else:
             raise AssertionError(
                 "Bank-boundary behavior matches neither the known limitation nor the "
