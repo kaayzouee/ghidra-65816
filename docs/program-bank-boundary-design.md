@@ -42,7 +42,7 @@ The validation workflow now exposes a manual `require_bank_wrap` input. Run **Ac
 
 ## Parser-only prototype
 
-A headless probe now passes a test-only `MemBuffer` to `Language.parse` that wraps byte offsets within the instruction's starting bank. The probe asserts that an `LDA` at `$02:FFFF` can be parsed with operand `$42` from `$02:0000`, rather than the linear byte at `$03:0000`. The normal disassembler continues to use Ghidra's standard buffer; this is an API feasibility probe, not a fix. The instruction-listing extent and next-address behavior still require a supported integration point, and the prototype passed pinned Ghidra CI in [run 40804944764](https://github.com/kaayzouee/ghidra-65816/actions/runs/40804944764).
+A headless probe passes a test-only `MemBuffer` to `Language.parse` that wraps byte offsets within the instruction's starting bank. The expanded regression covers a three-byte `LDA absolute` at `$00:FFFE` (third byte from `$00:0000`), a two-byte `LDA immediate` at `$02:FFFF` (operand `$42` from `$02:0000` rather than the linear byte at `$03:0000`), and a one-byte `NOP` at `$04:FFFF` (next byte sampled at `$04:0000`). These probes validate byte selection for the three instruction lengths, not the normal disassembler. Ghidra's standard buffer and contiguous instruction extent/fall-through behavior still require a supported integration point; the original parser prototype passed pinned Ghidra CI in [run 40804944764](https://github.com/kaayzouee/ghidra-65816/actions/runs/40804944764), and the extended regression is being revalidated.
 
 ## Decision
 
