@@ -6,6 +6,12 @@ on:
       - "**"
   pull_request:
   workflow_dispatch:
+    inputs:
+      require_bank_wrap:
+        description: "Require hardware-correct bank-wrapped instruction fetch (fails until P0 is fixed)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -74,6 +80,11 @@ jobs:
 
       - name: Run headless disassembly regressions
         run: python scripts/ci/test-issue-disassembly.py
+
+      - name: Characterize instruction fetch at program-bank boundary
+        env:
+          GHIDRA_BANK_WRAP_REQUIRED: ${{ github.event_name == 'workflow_dispatch' && inputs.require_bank_wrap && '1' || '0' }}
+        run: python scripts/ci/test-bank-boundary.py
 
       - name: Run absolute-target display regressions
         run: python scripts/ci/test-absolute-target-display.py

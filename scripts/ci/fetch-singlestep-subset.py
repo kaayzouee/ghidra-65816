@@ -19,9 +19,10 @@ BASE_URL = (
     "https://raw.githubusercontent.com/SingleStepTests/65816/"
     f"{COMMIT}/v1/{{opcode:02x}}.{{mode}}.json"
 )
-# Arithmetic/flags, immediate-width decoding, stack transfers, memory writes, and indirect-long
-# indexed reads. Avoid STP in the fast subset because the current p-code model represents it as a halt.
-SUBSET_OPCODES = (0x69, 0xA9, 0x48, 0x68, 0x8D, 0xB7)
+# Arithmetic/flags, immediate-width decoding, stack transfers, memory writes, indirect-long
+# indexed reads, immediate compare flags, and relative-branch flow. Avoid STP in the fast subset
+# because the current p-code model represents it as a halt.
+SUBSET_OPCODES = (0x69, 0xA9, 0x48, 0x68, 0x8D, 0xB7, 0xC9, 0xD0)
 MODES = ("e", "n")
 
 
