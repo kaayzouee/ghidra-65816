@@ -25,6 +25,7 @@ EXPECTED_HARDWARE = {
         "wrapped": 0x18,
         "fallthrough": 0x040000,
     },
+    "coexist": {"coexists": True},
 }
 
 KNOWN_CURRENT_LIMITATION = {
@@ -32,7 +33,7 @@ KNOWN_CURRENT_LIMITATION = {
         "entry": 0x00FFFE,
         "mnemonic": "LDA",
         "length": 3,
-        "bytes": "ad3412",
+        "bytes": "ad34ea",
         "wrapped": 0x56,
         "fallthrough": 0x010001,
     },
@@ -52,6 +53,7 @@ KNOWN_CURRENT_LIMITATION = {
         "wrapped": 0x18,
         "fallthrough": 0x050000,
     },
+    "coexist": {"coexists": False},
 }
 
 
@@ -59,20 +61,21 @@ def classify_observation(actual: dict, require_hardware: bool = False) -> tuple[
     """Classify the headless output without accepting arbitrary behavior.
 
     Normal CI is diagnostic until the architectural fix lands: it passes for
-    either true hardware behavior or the one reproduced current limitation.
+    either true hardware behavior or the reproduced current limitation.
     Strict mode is intended for validating a candidate fix and accepts only
-    true hardware behavior.
+    true hardware behavior, including independent decodability at bank $01:0000.
     """
     if actual == EXPECTED_HARDWARE:
         return (
             "PASS",
             "Bank-wrapped instruction bytes and fall-through conform for "
-            "one-, two-, and three-byte instructions.",
+            "one-, two-, and three-byte instructions; the instruction at "
+            "bank $01:$0000 remains independently decodable.",
         )
 
     if actual == KNOWN_CURRENT_LIMITATION:
         details = []
-        for name in EXPECTED_HARDWARE:
+        for name in ("absolute3", "immediate2", "single1"):
             observed = actual[name]
             expected = EXPECTED_HARDWARE[name]
             details.append(
@@ -81,14 +84,18 @@ def classify_observation(actual: dict, require_hardware: bool = False) -> tuple[
                 f"expected bytes={expected['bytes']} "
                 f"fallthrough=0x{expected['fallthrough']:06X}"
             )
+        details.append(
+            "  bank-$01:$0000 NOP coexistence: "
+            f"observed={actual['coexist']['coexists']}; expected=True"
+        )
         message = (
-            "Instruction bytes and fall-through still advance linearly across the "
-            "PBR boundary. Hardware expects:\n" + "\n".join(details)
+            "Instruction-byte fetch, code-unit extent, or fall-through still "
+            "violates 65816 bank semantics. Hardware expects:\n" + "\n".join(details)
         )
         if require_hardware:
             raise AssertionError(
-                "GHIDRA_BANK_WRAP_REQUIRED=1, but bank-wrapped fetch is unsupported.\n"
-                + message
+                "GHIDRA_BANK_WRAP_REQUIRED=1, but bank-wrapped instruction behavior is "
+                "unsupported.\n" + message
             )
         return "KNOWN LIMITATION", message
 
