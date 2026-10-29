@@ -273,18 +273,22 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             entry, processorContext, buffer, parserContext);
         Object[] inputObjects = prototype.getInputObjects(instructionContext);
         long operand = -1;
+        StringBuilder scalarInputs = new StringBuilder();
         for (Object input : inputObjects) {
             if (input instanceof Scalar) {
-                operand = ((Scalar) input).getUnsignedValue();
-                break;
+                long value = ((Scalar) input).getUnsignedValue();
+                if (scalarInputs.length() > 0) scalarInputs.append(",");
+                scalarInputs.append(Long.toHexString(value));
+                if (value == 0x42) operand = value;
             }
         }
-        out.printf("case=parserprobe|length=%d|operand=%x|wrapped_byte=%02x%n",
-            prototype.getLength(), operand, buffer.getByte(1) & 0xff);
+        out.printf("case=parserprobe|length=%d|operand=%x|wrapped_byte=%02x|scalars=%s%n",
+            prototype.getLength(), operand, buffer.getByte(1) & 0xff, scalarInputs);
         if (prototype.getLength() != 2 || operand != 0x42) {
             throw new AssertionError(
                 "Bank-wrapped Language.parse probe failed: expected LDA #$42, length 2; got " +
-                prototype.getLength() + " and operand 0x" + Long.toHexString(operand));
+                prototype.getLength() + ", operand 0x" + Long.toHexString(operand) +
+                ", scalar inputs [" + scalarInputs + "]");
         }
     }
 
