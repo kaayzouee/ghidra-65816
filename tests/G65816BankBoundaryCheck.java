@@ -262,7 +262,8 @@ public class G65816BankBoundaryCheck extends GhidraScript {
     private void probeWrappedParser(
             PrintStream out, Memory memory, RegisterValue context, String label,
             long entryOffset, int expectedLength, long expectedOperand,
-            int wrappedOffset, int expectedWrappedByte) throws Exception {
+            int wrappedOffset, int expectedWrappedByte, int wordOffset, int expectedWord)
+            throws Exception {
         Address entry = toAddr(entryOffset);
         BankWrappedMemBuffer buffer = new BankWrappedMemBuffer(memory, entry);
         FixedProcessorContext processorContext =
@@ -290,21 +291,25 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             parsedBytes.append(String.format("%02x", buffer.getByte(i) & 0xff));
         }
         int wrappedByte = buffer.getByte(wrappedOffset) & 0xff;
+        int wrappedWord = buffer.getShort(wordOffset) & 0xffff;
         String operandText = expectedOperand >= 0 ? Long.toHexString(operand) : "none";
         out.printf(
-            "case=parserprobe|label=%s|entry=%06x|length=%d|operand=%s|wrapped_offset=%d|wrapped_byte=%02x|bytes=%s|scalars=%s%n",
+            "case=parserprobe|label=%s|entry=%06x|length=%d|operand=%s|wrapped_offset=%d|wrapped_byte=%02x|word_offset=%d|word=%04x|bytes=%s|scalars=%s%n",
             label, entry.getOffset(), prototype.getLength(), operandText,
-            wrappedOffset, wrappedByte, parsedBytes, scalarInputs);
+            wrappedOffset, wrappedByte, wordOffset, wrappedWord, parsedBytes, scalarInputs);
 
         if (prototype.getLength() != expectedLength || wrappedByte != expectedWrappedByte ||
+                wrappedWord != expectedWord ||
                 (expectedOperand >= 0 && operand != expectedOperand)) {
             throw new AssertionError(
                 "Bank-wrapped Language.parse probe failed for " + label +
                 ": expected length " + expectedLength + ", wrapped byte 0x" +
                 Integer.toHexString(expectedWrappedByte) +
                 (expectedOperand >= 0 ? ", operand 0x" + Long.toHexString(expectedOperand) : "") +
+                ", wrapped word 0x" + Integer.toHexString(expectedWord) +
                 "; got length " + prototype.getLength() + ", wrapped byte 0x" +
-                Integer.toHexString(wrappedByte) +
+                Integer.toHexString(wrappedByte) + ", word 0x" +
+                Integer.toHexString(wrappedWord) +
                 ", operand " + operandText + ", bytes " + parsedBytes +
                 ", scalar inputs [" + scalarInputs + "]");
         }
@@ -351,11 +356,14 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             disassembleAndPrint(out, memory, 0x04ffff, 0x040000, "single1", context);
             checkBankStartCoexistence(out, context);
             probeWrappedParser(
-                out, memory, context, "absolute3", 0x00fffe, 3, -1, 2, 0x56);
+                out, memory, context, "absolute3", 0x00fffe, 3, -1, 2, 0x56,
+                1, 0x5634);
             probeWrappedParser(
-                out, memory, context, "immediate2", 0x02ffff, 2, 0x42, 1, 0x42);
+                out, memory, context, "immediate2", 0x02ffff, 2, 0x42, 1, 0x42,
+                0, 0x42a9);
             probeWrappedParser(
-                out, memory, context, "single1", 0x04ffff, 1, -1, 1, 0x18);
+                out, memory, context, "single1", 0x04ffff, 1, -1, 1, 0x18,
+                0, 0x18ea);
         }
     }
 }
