@@ -1,56 +1,32 @@
-# Upstream Ghidra support request: bank-wrapped instruction fetch
+# Ghidra feature request: bank-wrapped instruction fetch
 
-This file is a copy-ready issue draft for the Ghidra repository. It is not an upstream issue: the connected GitHub integration was not permitted to create issues in `NationalSecurityAgency/ghidra`.
-
-## Suggested title
-
-Support bank-wrapped instruction-byte fetch and instruction extent for banked program counters
+This is a draft for an upstream feature request. It has not been filed.
 
 ## Problem
 
-The WDC 65816 fetches each instruction byte using a 16-bit PC within the current program bank (PBR). If an instruction crosses offset `$FFFF`, subsequent bytes come from the same bank at `$0000`, and sequential PC flow wraps without incrementing PBR.
+The WDC 65816 uses a 16-bit program counter within the current program bank. When an instruction crosses offset `$FFFF`, the following instruction bytes and sequential PC wrap to offset `$0000` in the same bank.
 
-The Ghidra 12.1.4 SLEIGH model currently encodes PBR:PC as a flat 24-bit address. As a result, standard disassembly reads sequentially into the next linear bank. This cannot be fixed just by masking `inst_next`, branch targets, or PC p-code: the instruction parser has already consumed the wrong bytes and selected an instruction length before semantics run.
+In Ghidra 12.1.4, the 65816 language maps the bank and PC to a flat 24-bit address. Disassembly can therefore read bytes from the next linear bank and set fall-through to that bank. Masking the PC in SLEIGH semantics is too late because the parser has already read the instruction bytes.
 
 ## Reproduction
 
-A headless regression in [kaayzouee/ghidra-65816 PR #29](https://github.com/kaayzouee/ghidra-65816/pull/29) covers three boundary cases. The test code is in [G65816BankBoundaryCheck.java](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/tests/G65816BankBoundaryCheck.java); it is run by [test-bank-boundary.py](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/scripts/ci/test-bank-boundary.py).
+The headless regression in [ghidra-65816 PR #29](https://github.com/kaayzouee/ghidra-65816/pull/29) tests:
 
-1. A three-byte `LDA absolute` at `$00:FFFE`: byte three should be read from `$00:0000`, not `$01:0000`.
-2. A two-byte `LDA immediate` at `$02:FFFF`: byte two should be read from `$02:0000`, not `$03:0000`.
-3. A one-byte `NOP` at `$04:FFFF`: fall-through should be `$04:0000`, not `$05:0000`.
+- A three-byte `LDA absolute` at `$00:FFFE`: the last byte should come from `$00:0000`.
+- A two-byte `LDA immediate` at `$02:FFFF`: the operand should come from `$02:0000`.
+- A one-byte `NOP` at `$04:FFFF`: fall-through should be `$04:0000`.
 
-The regression passes in normal CI when the output matches either the hardware-correct behavior or the known current limitation; it has a strict `GHIDRA_BANK_WRAP_REQUIRED=1` mode that only accepts hardware-correct output.
+The current disassembly reads linearly into the next bank instead. The test and its runner are in [G65816BankBoundaryCheck.java](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/tests/G65816BankBoundaryCheck.java) and [test-bank-boundary.py](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/scripts/ci/test-bank-boundary.py).
 
-## Code-path evidence
+## Request
 
-In the pinned Ghidra 12.1.4 source:
+Is there an existing supported way for a processor language to define bank-aware instruction fetch and wrapped instruction flow? If not, could Ghidra provide one?
 
-- `Disassembler.disassembleInstructionBlock` makes a `WrappedMemBuffer` for the candidate instruction and passes it to the language parser.
-- `WrappedMemBuffer` documents that it does not wrap when the end of the memory space is encountered; its underlying buffer fetches linearly.
-- `MemoryBufferImpl.getByte()` and `getBytes()` use non-wrapping address addition for bytes outside their current cache.
-- `SleighParserContext` obtains operand bytes through the supplied buffer and computes `nextInstrAddr` by adding the parsed instruction length to the current address.
-- `CodeUnitDB.getMaxAddress()` derives a code unit's maximum address by adding `length - 1` to its start; the listing model assumes a contiguous ordered range, so a custom fetch buffer alone would still overlap bytes belonging to the following bank.
+A solution needs to:
+- Read instruction byte `n` from `(PBR, (PC + n) & 0xffff)`.
+- Represent an instruction that wraps within a bank without occupying the next bank's address range.
+- Set sequential flow to the wrapped PC while keeping banks at distinct analysis addresses.
 
-See the version-pinned Ghidra sources: [Disassembler.java](https://github.com/NationalSecurityAgency/ghidra/blob/Ghidra_12.1.4_build/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/disassemble/Disassembler.java), [WrappedMemBuffer.java](https://github.com/NationalSecurityAgency/ghidra/blob/Ghidra_12.1.4_build/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/WrappedMemBuffer.java), [MemoryBufferImpl.java](https://github.com/NationalSecurityAgency/ghidra/blob/Ghidra_12.1.4_build/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/MemoryBufferImpl.java), and [SleighParserContext.java](https://github.com/NationalSecurityAgency/ghidra/blob/Ghidra_12.1.4_build/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighParserContext.java), and [CodeUnitDB.java](https://github.com/NationalSecurityAgency/ghidra/blob/Ghidra_12.1.4_build/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/database/code/CodeUnitDB.java).
+A test-only `MemBuffer` passed to the public `Language.parse` API can supply wrapped bytes, but normal disassembly does not use that buffer and the parser's next address remains linear. The test documents this limitation.
 
-## Requested capability
-
-Could Ghidra provide a supported processor-language extension point for bank-aware instruction fetch and wrapped instruction extent/flow? At minimum it would need to support:
-
-- Fetching byte `n` for a decoded instruction from `(PBR, (PC + n) & 0xffff)`.
-- Keeping different physical banks distinct at stable analysis addresses.
-- Representing an instruction whose logical bytes wrap to a lower offset without reserving the corresponding linear address in the next bank.
-- Computing sequential flow with 16-bit PC wrap and unchanged PBR, while keeping listing, cross-references, re-disassembly, and decompiler behavior coherent.
-
-A language-level instruction-buffer factory may solve byte selection, but the listing/instruction model also needs to represent the instruction extent correctly when its bytes are not a contiguous range in the physical address map. Is there an existing supported extension point or preferred architecture for this?
-
-## Additional API experiment
-
-A test-only `MemBuffer` implementation was passed directly to the public `Language.parse` API in pinned Ghidra 12.1.4. The expanded headless probe covers 3-, 2-, and 1-byte instructions at bank boundaries, checks little-endian word reads across the wrap (`$5634`, `$42A9`, `$18EA`), and verifies that `LDA #$42` at `$02:FFFF` uses the byte at `$02:0000`. The experiment is in [G65816BankBoundaryCheck.java](https://github.com/kaayzouee/ghidra-65816/blob/work/scope-limitations-roadmap/tests/G65816BankBoundaryCheck.java). The wrapped-byte/word cases passed [CI run 40806375370](https://github.com/kaayzouee/ghidra-65816/actions/runs/40806375370), and the regression passed [CI run 40807055074](https://github.com/kaayzouee/ghidra-65816/actions/runs/40807055074) with an additional assertion that `SleighParserContext.getNaddr()` remains linear at `$01:0001`, `$03:0001`, and `$05:0000`. Pinned source shows this next address is calculated using `addr.add(prototype.getLength())`; wrapping bytes alone does not wrap the parser's logical next address.
-
-This narrows the required integration point: custom byte selection works when a caller controls the `MemBuffer`, but the normal disassembler constructs its own buffer and the listing still treats instruction extent as contiguous. A complete supported solution needs both a processor/language-level fetch-buffer hook and a representation or mapping strategy for wrapped instruction extent and sequential flow.
-
-## Related but distinct work
-
-[Discussion #9349, “Context-aware address resolution for banked memory (extending overlays)”](https://github.com/NationalSecurityAgency/ghidra/discussions/9349) proposes making *operand/reference target resolution* depend on processor context. That is related to banked processors, but P0 is earlier in the pipeline: instruction bytes must be correct before constructor selection and instruction-length determination. The two capabilities are complementary, not interchangeable.
+Guidance on the appropriate extension point or design would help before implementation begins.
