@@ -1,6 +1,6 @@
 # Program-bank instruction fetch: design findings
 
-**Updated:** 2026-10-28 · Investigation for P0 in [the scope work roadmap](pr28-scope-work-roadmap.md).
+**Updated:** 2026-10-29 · Investigation for P0 in [the scope work roadmap](pr28-scope-work-roadmap.md).
 
 ## Finding
 
@@ -31,6 +31,12 @@ Ghidra's [SLEIGH address-space documentation](https://ghidra.re/ghidra_docs/lang
 The headless test [`G65816BankBoundaryCheck.java`](../tests/G65816BankBoundaryCheck.java), invoked by [`test-bank-boundary.py`](../scripts/ci/test-bank-boundary.py), now checks one-, two-, and three-byte instructions at `$xx:FFFF` / `$xx:FFFE`, places different bytes at the wrapped same-bank addresses, and records decoded bytes plus fall-through. All three characterization cases passed pinned Ghidra CI run [40629110625](https://github.com/kaayzouee/ghidra-65816/actions/runs/40629110625).
 
 The runner records both the hardware-correct expected output and the known current output. By default, CI succeeds only when the observed result matches one of those two states: it prints either `PASS` for hardware conformance or `KNOWN LIMITATION` with the observed-vs-expected bytes and fall-through. Setting `GHIDRA_BANK_WRAP_REQUIRED=1` turns the current limitation into a hard failure, so the same fixture can be run as a strict conformance gate when validating a proposed fix.
+
+## Upstream path
+
+Ghidra [Discussion #9349](https://github.com/NationalSecurityAgency/ghidra/discussions/9349) addresses context-aware resolution of *operand/reference targets* for banked memory. It does not provide instruction-byte wrapping or a discontiguous instruction extent, so it is relevant but not sufficient for P0. A separate upstream request has been prepared in [ghidra-bank-fetch-support-request.md](ghidra-bank-fetch-support-request.md). The repository connection could not create a new issue in `NationalSecurityAgency/ghidra` due to an HTTP 403 permission denial; no upstream issue is being claimed as filed.
+
+The validation workflow now exposes a manual `require_bank_wrap` input. Run **Actions → SLEIGH validation → Run workflow** with that input checked to require hardware-correct output; the current implementation is expected to fail this strict gate until P0 is actually fixed. Normal push/PR CI remains diagnostic and passes only for either the known current behavior or the correct hardware behavior.
 
 ## Decision
 
