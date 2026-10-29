@@ -27,6 +27,7 @@ class BankBoundaryContractTests(unittest.TestCase):
         self.assertEqual(status, "KNOWN LIMITATION")
         self.assertIn("fallthrough=0x010001", message)
         self.assertIn("expected bytes=ad3456", message)
+        self.assertIn("coexistence: observed=False; expected=True", message)
 
     def test_known_bug_fails_strict_conformance_mode(self) -> None:
         with self.assertRaisesRegex(AssertionError, "GHIDRA_BANK_WRAP_REQUIRED=1"):
