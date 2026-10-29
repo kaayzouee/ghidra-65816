@@ -1,9 +1,11 @@
-# Ghidra feature request: 65816 bank-wrapped instruction fetch
+**Is your feature request related to a problem? Please describe.**
+The 65816 wraps instruction fetch and sequential flow at offset `$FFFF` within the current program bank. Ghidra 12.1.4 reads linearly into the next bank.
 
-The 65816 wraps instruction fetch and sequential flow at offset `$FFFF` within the current program bank. Ghidra 12.1.4 reads linearly into the next bank instead.
+**Describe the solution you'd like**
+A supported way to implement bank-aware instruction fetch, instruction extent, and wrapped sequential flow.
 
-A source check of Ghidra 12.2 shows the relevant buffer, parser, and disassembler code is unchanged. Runtime testing against 12.2 has not been done.
+**Describe alternatives you've considered**
+If no direct support exists, guidance on the appropriate extension point.
 
-The regression cases in [PR #29](https://github.com/kaayzouee/ghidra-65816/pull/29) cover 1-, 2-, and 3-byte instructions at the bank boundary.
-
-Does Ghidra provide a supported way to implement bank-aware instruction fetch, instruction extent, and wrapped sequential flow? If not, what extension point would be appropriate?
+**Additional context**
+A source check shows the relevant code is unchanged in Ghidra 12.2; runtime testing has not been done. [PR #29](https://github.com/kaayzouee/ghidra-65816/pull/29) contains 1-, 2-, and 3-byte boundary regression cases.
