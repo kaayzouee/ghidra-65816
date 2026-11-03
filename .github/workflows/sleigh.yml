@@ -78,6 +78,9 @@ jobs:
           echo "GHIDRA_INSTALL_DIR=$GHIDRA_HOME" >> "$GITHUB_ENV"
           echo "GHIDRA_EXTERNAL_MODULES=$module_dir" >> "$GITHUB_ENV"
 
+      - name: Validate proposed upstream parser patch against Ghidra 12.1.4 source and binaries
+        run: bash scripts/ci/check-upstream-core-patch.sh "$GHIDRA_INSTALL_DIR"
+
       - name: Run headless disassembly regressions
         run: python scripts/ci/test-issue-disassembly.py
 
