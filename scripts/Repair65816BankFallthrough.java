@@ -57,6 +57,13 @@ public class Repair65816BankFallthrough extends GhidraScript {
                 if (instruction.getDefaultFallThroughOffset() != length ||
                         instruction.isFallThroughOverridden()) {
                     preserved++;
+                    if (report != null) {
+                        Address existing = instruction.getFallThrough();
+                        report.printf(
+                            "case=preserved|entry=%06x|fallthrough=%s%n", offset,
+                            existing == null ? "none" :
+                                String.format("%06x", existing.getOffset()));
+                    }
                     continue; // Respect nonstandard flow and explicit user overrides.
                 }
 
