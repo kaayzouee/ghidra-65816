@@ -66,6 +66,17 @@ A multi-byte instruction beginning at `$xx:FFFF` or a three-byte instruction
 at `$xx:FFFE` still reads bytes from the wrong bank and cannot be repaired
 by changing its flow reference. No Ghidra core changes are included.
 
+## Upstream parser API patch proposal
+
+An opt-in `InstructionAddressMapper` and `BankedInstructionMemBuffer`
+source patch for Ghidra 12.1.4 is available in
+[`0001-banked-instruction-parser-address-mapping.patch`](../patches/ghidra-12.1.4/0001-banked-instruction-parser-address-mapping.patch).
+It makes parser `inst_next` and prototype fall-through consult a caller-supplied
+mapped byte source without changing ordinary buffers. It does **not** change
+the default disassembler or the persistent `CodeUnitDB` extent model.
+The [patch design and validation procedure](upstream-parser-core-patch.md)
+detail this first-stage, non-production experiment.
+
 ## Decision
 
 Do not change `658xx.sinc`, the default address space, or the PC register layout in isolation. The correct next step for a complete fix is to prototype or request a supported Ghidra-level bank-aware instruction-fetch/address mechanism that handles both byte acquisition and logical next-address computation, then validate instruction decoding at both `$xx:FFFE` and `$xx:FFFF` for one-, two-, and three-byte instructions. Keep the current model until that mechanism is available; partial masking would make some branch flows appear correct while leaving decoded operands incorrect.
