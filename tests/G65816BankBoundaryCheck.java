@@ -321,6 +321,39 @@ public class G65816BankBoundaryCheck extends GhidraScript {
         }
     }
 
+    /**
+     * A separate safe subset: every instruction byte is still in its starting bank,
+     * but the following PC must wrap to the start of that bank. The repair script
+     * may update these edges without pretending to fix straddling instructions.
+     */
+    private void prepareSafeFallthroughCases(Memory memory, RegisterValue context)
+            throws Exception {
+        createExecutableBlock(memory, "bank06-safe-end", 0x06fffe, 2, (byte) 0);
+        setBytes(memory, 0x06fffe, new byte[] {(byte) 0xa9, 0x42});
+        createExecutableBlock(memory, "bank06-safe-low", 0x060000, 1, (byte) 0xea);
+
+        createExecutableBlock(memory, "bank08-safe-end", 0x08fffd, 3, (byte) 0);
+        setBytes(memory, 0x08fffd, new byte[] {(byte) 0xad, 0x34, 0x12});
+        createExecutableBlock(memory, "bank08-safe-low", 0x080000, 1, (byte) 0xea);
+
+        createExecutableBlock(memory, "bank0c-overridden-end", 0x0cffff, 1, (byte) 0xea);
+        createExecutableBlock(memory, "bank0c-overridden-low", 0x0c0000, 1, (byte) 0xea);
+
+        for (long entry : new long[] {0x06fffe, 0x08fffd, 0x0cffff}) {
+            DisassembleCommand command = new DisassembleCommand(toAddr(entry), null, false);
+            command.setInitialContext(context);
+            if (!command.applyTo(currentProgram, monitor) ||
+                    currentProgram.getListing().getInstructionAt(toAddr(entry)) == null) {
+                throw new AssertionError("Failed to prepare fall-through fixture at " +
+                    Long.toHexString(entry));
+            }
+        }
+
+        // A user-supplied override must survive automatic bank-local repair.
+        currentProgram.getListing().getInstructionAt(toAddr(0x0cffff))
+            .setFallThrough(toAddr(0x0c0033));
+    }
+
     @Override
     protected void run() throws Exception {
         String[] args = getScriptArgs();
@@ -361,6 +394,7 @@ public class G65816BankBoundaryCheck extends GhidraScript {
             disassembleAndPrint(out, memory, 0x02ffff, 0x020000, "immediate2", context);
             disassembleAndPrint(out, memory, 0x04ffff, 0x040000, "single1", context);
             checkBankStartCoexistence(out, context);
+            prepareSafeFallthroughCases(memory, context);
             probeWrappedParser(
                 out, memory, context, "absolute3", 0x00fffe, 3, -1, 2, 0x56,
                 1, 0x5634, 0x010001);
