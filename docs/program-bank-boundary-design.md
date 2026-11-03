@@ -48,6 +48,24 @@ A headless probe passes a test-only `MemBuffer` to `Language.parse` that wraps b
 
 Ghidra 12.1.4's public [Disassembler API](https://ghidra.re/ghidra_docs/api/ghidra/program/disassemble/Disassembler.html) has protected constructors plus overridable `parseInstructionPrototype` and `processInstruction` hooks. A separate Java extension could explore a bank-aware parser buffer for a custom disassembly command, but the normal language/disassembler factory does not make this a processor-spec-only override. More importantly, changing the parse buffer would still leave `CodeUnitDB` requiring each instruction to occupy a contiguous address range; custom flow handling alone cannot make the wrapped bytes coexist with the next bank's canonical address. This is a possible experiment for a separate extension, not a safe standalone fix to this processor module.
 
+## Safe partial workaround: explicit fall-through overrides
+
+[`Repair65816BankFallthrough.java`](../scripts/Repair65816BankFallthrough.java)
+is a Ghidra Java script that changes the fall-through reference only for
+already-decoded instructions whose final byte is `$xx:FFFF` but whose **entire
+encoding** is inside that bank. For example, the two bytes at `$06:FFFE`
+and `$06:FFFF` can be decoded correctly by the standard contiguous byte
+buffer, but their following PC belongs at `$06:0000`, not `$07:0000`.
+The script uses `Instruction.setFallThrough` to represent this safe edge.
+It leaves explicit user overrides intact and skips instructions that need
+discontinuous byte fetch. The headless regression checks one-, two-, and
+three-byte boundary-end instructions and runs the script twice.
+
+This is a **bounded, opt-in workaround**, not a processor-wide fix.
+A multi-byte instruction beginning at `$xx:FFFF` or a three-byte instruction
+at `$xx:FFFE` still reads bytes from the wrong bank and cannot be repaired
+by changing its flow reference. No Ghidra core changes are included.
+
 ## Decision
 
 Do not change `658xx.sinc`, the default address space, or the PC register layout in isolation. The correct next step for a complete fix is to prototype or request a supported Ghidra-level bank-aware instruction-fetch/address mechanism that handles both byte acquisition and logical next-address computation, then validate instruction decoding at both `$xx:FFFE` and `$xx:FFFF` for one-, two-, and three-byte instructions. Keep the current model until that mechanism is available; partial masking would make some branch flows appear correct while leaving decoded operands incorrect.

@@ -22,6 +22,17 @@
 | 3 | Test coverage is not proof of complete CPU correctness. | The 160-case pinned subset, including immediate compare and relative branch cases in both modes, passed CI run [40629110625](https://github.com/kaayzouee/ghidra-65816/actions/runs/40629110625); investigate any mismatch against the WDC reference and another emulator. |
 | Out of scope | 65802, SNES loader, automatic vector analyzer, cycle timing. | Keep separate unless project scope changes. |
 
+## Partial bank-boundary mitigation
+
+A user-run [fall-through repair script](../scripts/Repair65816BankFallthrough.java)
+can correct default fall-through for an instruction **ending** at
+`$xx:FFFF`, when all bytes of that instruction remain in its original bank.
+The regression covers 1/2/3-byte cases, preserved manual overrides, and
+re-running without further changes. Instructions **straddling** `$xx:FFFF`
+are explicitly skipped: byte fetch, code-unit extent, and normal disassembly
+still need a Ghidra-level solution. See the
+[design note](program-bank-boundary-design.md#safe-partial-workaround-explicit-fall-through-overrides).
+
 ## Validation
 
 Normal CI runs source tests, pinned SLEIGH compilation, headless disassembly, runtime P-code checks, and the bounded SingleStepTests subset. The optional full-corpus workflow is documented in [DEVELOPMENT.md](../DEVELOPMENT.md).

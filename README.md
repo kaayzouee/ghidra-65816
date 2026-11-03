@@ -35,7 +35,7 @@ Use **Processor Options...** for `MF`, `XF`, and `EF`; use **Set Register Values
 
 ## Limitations
 
-- Instruction bytes and fall-through can still cross a program-bank boundary incorrectly. The current SLEIGH model cannot wrap parser byte reads at `$xx:FFFF`; see the [design findings](docs/program-bank-boundary-design.md) and [roadmap](docs/limitations-roadmap.md).
+- Instruction bytes and fall-through can still cross a program-bank boundary incorrectly. The current SLEIGH model cannot wrap parser byte reads at `$xx:FFFF`. The optional [fall-through repair script](DEVELOPMENT.md#safe-bank-local-fall-through-repair) fixes **only** flow edges for instructions whose final byte is at `$xx:FFFF`; it cannot fix instructions that straddle the boundary. See the [design findings](docs/program-bank-boundary-design.md) and [roadmap](docs/limitations-roadmap.md).
 - Static analysis cannot always infer `MF`/`XF`/`EF` from unknown stack contents, computed Carry, or conflicting paths; after status restores whose width bits are unknown, set context manually at the next known instruction. See the [limitations roadmap](docs/limitations-roadmap.md).
 - `WAI` is modelled as fall-through; `STP` as a self-loop. Wait-state, interrupt wake-up, and hardware reset are not emulated.
 - This repository does not include a SNES ROM loader, automatic vector analyzer, or 65802 variant.

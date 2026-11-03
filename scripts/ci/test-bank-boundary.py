@@ -3,6 +3,7 @@
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -24,6 +25,12 @@ def main() -> None:
         output = work / "result.txt"
         project = work / "project"
         project.mkdir()
+        script_dir = work / "scripts"
+        script_dir.mkdir()
+        shutil.copy2(ROOT / "tests" / "G65816BankBoundaryCheck.java", script_dir)
+        shutil.copy2(ROOT / "scripts" / "Repair65816BankFallthrough.java", script_dir)
+        repair_report = work / "fallthrough-repair.txt"
+        repeat_report = work / "fallthrough-repeat.txt"
 
         command = [
             str(GHIDRA / "support" / "analyzeHeadless"),
@@ -39,10 +46,16 @@ def main() -> None:
             "65816:LE:16:default",
             "-noanalysis",
             "-scriptPath",
-            str(ROOT / "tests"),
+            str(script_dir),
             "-postScript",
             "G65816BankBoundaryCheck.java",
             str(output),
+            "-postScript",
+            "Repair65816BankFallthrough.java",
+            str(repair_report),
+            "-postScript",
+            "Repair65816BankFallthrough.java",
+            str(repeat_report),
             "-deleteProject",
         ]
         completed = subprocess.run(
@@ -154,6 +167,59 @@ def main() -> None:
             "LDA #$42 consumed its operand from the wrapped address. Even with "
             "wrapped bytes, parser inst_next remains linear; normal disassembly "
             "still uses Ghidra's standard buffer."
+        )
+
+        # The repair script only updates fall-through when the final byte is
+        # at $xx:FFFF. Instructions straddling the boundary remain unsupported.
+        def read_repair_report(path: Path) -> dict:
+            if not path.is_file():
+                raise AssertionError(f"Missing fall-through repair report: {path}")
+            result = {"repair": {}, "unsafe": {}, "preserved": {}}
+            for line in path.read_text(encoding="utf-8").splitlines():
+                fields = dict(item.split("=", 1) for item in line.split("|"))
+                kind = fields.pop("case")
+                if kind == "summary":
+                    result["summary"] = {key: int(val) for key, val in fields.items()}
+                else:
+                    entry = int(fields.pop("entry"), 16)
+                    result[kind][entry] = fields
+            if "summary" not in result:
+                raise AssertionError(f"No summary in repair report: {path}")
+            return result
+
+        repaired = read_repair_report(repair_report)
+        repeated = read_repair_report(repeat_report)
+        expected_repairs = {
+            0x04FFFF: (1, 0x040000),
+            0x06FFFE: (2, 0x060000),
+            0x08FFFD: (3, 0x080000),
+        }
+        for entry, (length, target) in expected_repairs.items():
+            observation = repaired["repair"].get(entry)
+            if observation is None or int(observation["length"]) != length or (
+                int(observation["fallthrough"], 16) != target
+            ):
+                raise AssertionError(
+                    f"Missing safe fall-through repair at {entry:06x}: {observation}"
+                )
+        for entry in (0x00FFFE, 0x02FFFF):
+            if entry not in repaired["unsafe"] or entry in repaired["repair"]:
+                raise AssertionError(
+                    f"Straddling instruction was not excluded: {entry:06x}"
+                )
+        overridden = repaired["preserved"].get(0x0CFFFF)
+        if overridden is None or overridden["fallthrough"] != "0c0033":
+            raise AssertionError(
+                f"Existing user fall-through override was lost: {overridden}"
+            )
+        if repeated["repair"] or repeated["summary"]["repaired"] != 0:
+            raise AssertionError(
+                f"Repeated repair should be idempotent: {repeated}"
+            )
+        print(
+            "BANK-LOCAL FALL-THROUGH: repaired 1-, 2-, and 3-byte instructions "
+            "ending exactly at $xx:FFFF; straddling bytes remain unsupported; "
+            "custom override preserved; second pass made no additional changes."
         )
 
         status, message = classify_observation(
