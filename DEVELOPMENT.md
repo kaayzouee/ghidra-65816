@@ -31,6 +31,31 @@ gradle test
 
 Runtime regressions cover arithmetic and flags, status stack behavior, P-code stack operations, near/far control flow, selected bank-boundary cases, and `WAI`/`STP`. CI also runs headless disassembly checks and a deterministic 160-case subset of [SingleStepTests/65816](https://github.com/SingleStepTests/65816).
 
+## Safe bank-local fall-through repair
+
+Ghidra's default linear fall-through is wrong when an instruction ends exactly at
+`$xx:FFFF`: its next PC should be `$xx:0000`, preserving the program bank. For
+instructions that **fit entirely within the bank** (for example, a one-byte NOP
+at `$04:FFFF`, a two-byte instruction at `$06:FFFE`, or a three-byte
+instruction at `$08:FFFD`), this can be corrected using the supported
+`Instruction.setFallThrough(Address)` API without changing instruction bytes
+or code-unit extents.
+
+Run [`scripts/Repair65816BankFallthrough.java`](scripts/Repair65816BankFallthrough.java)
+as a Ghidra Java script against an imported 65816 program, preferably after
+disassembly has completed. It edits fall-through references in the current
+program; save a project backup first. To get a machine-readable report in a
+headless invocation, pass one argument (the report output path).
+
+The script only visits instructions in the default address space, skips
+instructions whose bytes actually straddle the bank end, respects manual
+fall-through overrides and nonstandard flow, and can be run repeatedly. It
+does **not** correct parser byte fetch, repair straddling instruction extents,
+undo already incorrect disassembly in the next bank, or turn the strict
+`GHIDRA_BANK_WRAP_REQUIRED=1` conformance gate green. The headless
+bank-boundary regression tests cover safe lengths 1/2/3, the two unsafe
+straddling cases, an existing user override, and idempotence.
+
 ## Strict program-bank fetch conformance
 
 Normal CI runs `scripts/ci/test-bank-boundary.py` diagnostically: it accepts either the currently reproduced limitation or true hardware-correct behavior, while rejecting unexpected results. To require the real fix, open **Actions → SLEIGH validation → Run workflow**, enable `require_bank_wrap`, and run it. That input sets `GHIDRA_BANK_WRAP_REQUIRED=1`; the workflow must fail until instruction bytes and fall-through match the hardware expectations for the 1-, 2-, and 3-byte boundary cases.
