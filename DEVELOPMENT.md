@@ -56,6 +56,25 @@ undo already incorrect disassembly in the next bank, or turn the strict
 bank-boundary regression tests cover safe lengths 1/2/3, the two unsafe
 straddling cases, an existing user override, and idempotence.
 
+## Proposed upstream Ghidra parser patch (experimental)
+
+A version-specific proof-of-concept source patch for Ghidra 12.1.4 lives under
+[`patches/ghidra-12.1.4/`](patches/ghidra-12.1.4/). It introduces an opt-in
+bank-aware parser buffer and address mapper, **but does not fix normal
+disassembly or discontinuous code-unit storage**. See
+[`docs/upstream-parser-core-patch.md`](docs/upstream-parser-core-patch.md)
+for scope, limitations, and the independent instruction-extents requirement.
+
+To verify the patch against the pinned tagged Ghidra sources and installed
+binary APIs, run:
+
+```sh
+bash scripts/ci/check-upstream-core-patch.sh "$GHIDRA_INSTALL_DIR"
+```
+
+This verifies patch application, Java compilation, and a standalone buffer
+smoke test. It does not claim strict bank-boundary disassembly conformance.
+
 ## Strict program-bank fetch conformance
 
 Normal CI runs `scripts/ci/test-bank-boundary.py` diagnostically: it accepts either the currently reproduced limitation or true hardware-correct behavior, while rejecting unexpected results. To require the real fix, open **Actions → SLEIGH validation → Run workflow**, enable `require_bank_wrap`, and run it. That input sets `GHIDRA_BANK_WRAP_REQUIRED=1`; the workflow must fail until instruction bytes and fall-through match the hardware expectations for the 1-, 2-, and 3-byte boundary cases.

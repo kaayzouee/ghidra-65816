@@ -1,0 +1,206 @@
+diff --git a/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighParserContext.java b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighParserContext.java
+--- a/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighParserContext.java
++++ b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighParserContext.java
+@@ -58,6 +58,10 @@
+ 		contextcommit = new ArrayList<>();
+ 		try {
+-			nextInstrAddr = addr.add(prototype.getLength());
++			// An opt-in instruction buffer can describe non-linear byte addresses.
++			// Ordinary buffers retain their historical linear next-address behavior.
++			nextInstrAddr = memBuf instanceof InstructionAddressMapper mapped
++					? mapped.getInstructionAddress(prototype.getLength())
++					: addr.add(prototype.getLength());
+ 		}
+ 		catch (AddressOutOfBoundsException exc) {
+ 			// no next instruction, last instruction in memory.
+@@ -112,7 +116,10 @@
+ 		constantSpace = origContext.constantSpace;
+ 		handleMap = origContext.handleMap;
+ 		try {
+-			nextInstrAddr = addr.add(prototype.getLength() + delayByteCount);
++			int length = prototype.getLength() + delayByteCount;
++			nextInstrAddr = memBuffer instanceof InstructionAddressMapper mapped
++					? mapped.getInstructionAddress(length)
++					: addr.add(length);
+ 		}
+ 		catch (AddressOutOfBoundsException exc) {
+ 			// no next instruction, last instruction in memory.
+diff --git a/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighInstructionPrototype.java b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighInstructionPrototype.java
+--- a/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighInstructionPrototype.java
++++ b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/app/plugin/processors/sleigh/SleighInstructionPrototype.java
+@@ -560,7 +560,12 @@
+ 	public Address getFallThrough(InstructionContext context) {
+ 		if (flowType.hasFallthrough()) {
+ 			try {
+-				return context.getAddress().addNoWrap(getFallThroughOffset(context));
++				int length = getFallThroughOffset(context);
++				MemBuffer buffer = context.getMemBuffer();
++				if (buffer instanceof InstructionAddressMapper mapped) {
++					return mapped.getInstructionAddress(length);
++				}
++				return context.getAddress().addNoWrap(length);
+ 			}
+ 			catch (AddressOverflowException e) {
+ 				// Return null if fallthru goes beyond boundary of address space
+diff --git a/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/InstructionAddressMapper.java b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/InstructionAddressMapper.java
+new file mode 100644
+--- /dev/null
++++ b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/InstructionAddressMapper.java
+@@ -0,0 +1,35 @@
++/* ###
++ * IP: GHIDRA
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package ghidra.program.model.mem;
++
++import ghidra.program.model.address.Address;
++
++/**
++ * Optional instruction-byte address mapping for parser buffers.  An implementation
++ * must map an instruction-relative offset to the address from which that byte is
++ * fetched.  The same mapping is used when calculating inst_next and the prototype
++ * fall-through.  Standard MemBuffer implementations remain unchanged.
++ *
++ * This interface does not change Ghidra's persistent code-unit extent model.
++ */
++public interface InstructionAddressMapper extends MemBuffer {
++
++	/**
++	 * @param byteOffset displacement from the start of the instruction
++	 * @return address of that instruction byte, or null when unavailable
++	 */
++	Address getInstructionAddress(int byteOffset);
++}
+diff --git a/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/BankedInstructionMemBuffer.java b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/BankedInstructionMemBuffer.java
+new file mode 100644
+--- /dev/null
++++ b/Ghidra/Framework/SoftwareModeling/src/main/java/ghidra/program/model/mem/BankedInstructionMemBuffer.java
+@@ -0,0 +1,117 @@
++/* ###
++ * IP: GHIDRA
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package ghidra.program.model.mem;
++
++import java.math.BigInteger;
++
++import ghidra.program.model.address.Address;
++import ghidra.util.GhidraDataConverter;
++
++/**
++ * Opt-in instruction read buffer that keeps high address bits fixed while the
++ * low program-counter bits wrap.  For a 16-bit PC in a 24-bit address space,
++ * bytes at 02:ffff, 02:0000 are read consecutively, not 02:ffff, 03:0000.
++ *
++ * Only suitable for instruction parsing.  The normal disassembler cannot
++ * persist discontinuous code-unit extents using this buffer alone.
++ */
++public final class BankedInstructionMemBuffer implements InstructionAddressMapper {
++	private final Memory memory;
++	private final Address start;
++	private final long pcMask;
++	private final long bankBase;
++	private final GhidraDataConverter converter;
++
++	/**
++	 * @param memory memory containing instruction bytes
++	 * @param start address of the instruction's opcode
++	 * @param pcBits width of the bank-local program counter (16 for 65816)
++	 */
++	public BankedInstructionMemBuffer(Memory memory, Address start, int pcBits) {
++		if (pcBits < 1 || pcBits > 30) {
++			throw new IllegalArgumentException("PC width must be between 1 and 30 bits");
++		}
++		if (pcBits >= start.getAddressSpace().getSize()) {
++			throw new IllegalArgumentException("PC width must be smaller than address width");
++		}
++		this.memory = memory;
++		this.start = start;
++		this.pcMask = (1L << pcBits) - 1;
++		this.bankBase = start.getOffset() & ~pcMask;
++		this.converter = GhidraDataConverter.getInstance(memory.isBigEndian());
++	}
++
++	@Override
++	public Address getInstructionAddress(int byteOffset) {
++		long pc = (start.getOffset() + byteOffset) & pcMask;
++		return start.getAddressSpace().getAddress(bankBase | pc);
++	}
++
++	@Override
++	public byte getByte(int offset) throws MemoryAccessException {
++		return memory.getByte(getInstructionAddress(offset));
++	}
++
++	@Override
++	public int getBytes(byte[] result, int offset) {
++		int read = 0;
++		for (; read < result.length; read++) {
++			try {
++				result[read] = getByte(offset + read);
++			}
++			catch (MemoryAccessException e) {
++				break;
++			}
++		}
++		return read;
++	}
++
++	@Override
++	public Address getAddress() {
++		return start;
++	}
++
++	@Override
++	public Memory getMemory() {
++		return memory;
++	}
++
++	@Override
++	public boolean isBigEndian() {
++		return memory.isBigEndian();
++	}
++
++	@Override
++	public short getShort(int offset) throws MemoryAccessException {
++		return converter.getShort(this, offset);
++	}
++
++	@Override
++	public int getInt(int offset) throws MemoryAccessException {
++		return converter.getInt(this, offset);
++	}
++
++	@Override
++	public long getLong(int offset) throws MemoryAccessException {
++		return converter.getLong(this, offset);
++	}
++
++	@Override
++	public BigInteger getBigInteger(int offset, int size, boolean signed)
++			throws MemoryAccessException {
++		return converter.getBigInteger(this, offset, size, signed);
++	}
++}
