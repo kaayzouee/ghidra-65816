@@ -8,7 +8,8 @@
 # boundary.
 
 # UNSUPPORTED: 65802 variant.
-# UNSUPPORTED: correct behaviour when an instruction and its operand(s) wrap at the end of the
+# UNSUPPORTED: correct sequential fall-through after an instruction ends at $PBR:$ffff, and
+#              correct behaviour when an instruction and its operand(s) wrap at the end of the
 #              program bank.
 # UNSUPPORTED: when pulling the context flags MF and XF from the stack Ghidra does not
 #              automatically set the correct processor mode (context variables).

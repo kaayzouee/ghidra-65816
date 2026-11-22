@@ -624,6 +624,9 @@ class PcodeEmulatorRegressionTest {
         writeRegister(run, "PBR", 0x12);
         writeRegister(run, "C", 0x1234);
 
+        // PC_FULL is a flat 24-bit program counter, so fall-through from this
+        // address carries into the next bank. That known limitation is documented
+        // in 658xx.sinc; this test intentionally covers only XBA's execution.
         executeOne(run);
 
         assertEquals(0x3412, readRegister(run, "C"));
