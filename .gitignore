@@ -1,3 +1,7 @@
 *.sla
 *.pdf
 *.sublime-*
+.audit/
+.gradle/
+build/
+**/__pycache__/

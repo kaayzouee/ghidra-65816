@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from ghidra_paths import analyze_headless
+
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
@@ -117,12 +119,15 @@ def extract_stack_writes(source: str) -> tuple[list[int], list[str]]:
         left, right = line.split(" = ", 1)
         # Only count stores whose destination is a stack slot. A normal
         # memory store that reads stack0x0000 on its right side is not a push.
-        if "&stack0x" not in left and "&uStack_" not in left:
+        if "&stack0x" not in left and "&uStack" not in left:
             continue
         value = right.rstrip(";").strip()
         # Ghidra may print small values in decimal and others in hex.
         values.append(int(value, 0))
-        locations.append(left.split("&", 1)[1].split(")", 1)[0])
+        location = left.split("&", 1)[1].split(")", 1)[0]
+        # Ghidra 12.2 renamed the bottom native stack slot from stack0x0000
+        # to uStack0000; both names describe the same address.
+        locations.append("stack0x0000" if location == "uStack0000" else location)
     return values, locations
 
 
@@ -169,7 +174,7 @@ def main() -> None:
         project = work / "project"
         project.mkdir()
         command = [
-            str(GHIDRA / "support" / "analyzeHeadless"),
+            analyze_headless(GHIDRA),
             str(project),
             "call-conventions",
             "-import", str(rom_path),
@@ -325,7 +330,9 @@ def main() -> None:
         )
         for address in ("0x324", "0x325"):
             if not any(
-                    address in line and "&stack0x0000" in line
+                    address in line and (
+                        "&stack0x0000" in line or "&uStack0000" in line
+                    )
                     for line in stack_data_caller.splitlines()):
                 raise AssertionError(
                     f"Store to {address} did not read back the saved stack0x0000 byte:\n"
@@ -398,7 +405,6 @@ def main() -> None:
         # bus addresses rather than a sequence of uStack_N locals. Check the
         # actual return bytes and the page-one address expressions instead.
         emulation_stack_fragments = (
-            "ZEXT23(&stack0x0000) = 0x87",
             "CONCAT11(uVar3,0xff) = 8",
             "uVar2 = CONCAT11(uVar3,0xfe)",
             "(uVar2 + 2) = 0x80",
@@ -409,6 +415,16 @@ def main() -> None:
             emulation_caller, emulation_stack_fragments,
             "Missing emulation-mode stack effects",
         )
+        if not any(
+            fragment in emulation_caller
+            for fragment in (
+                "ZEXT23(&stack0x0000) = 0x87",
+                "ZEXT23(&uStack0000) = 0x87",
+            )
+        ):
+            raise AssertionError(
+                "Missing emulation-mode bottom-stack write:\n" + emulation_caller
+            )
         if not (
             emulation_caller.index("CONCAT11(uVar3,0xff) = 8")
             < emulation_caller.index("near_emu_fn(")

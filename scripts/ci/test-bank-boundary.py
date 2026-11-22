@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 
 from bank_boundary_contract import classify_observation
+from ghidra_paths import analyze_headless
 
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
@@ -33,7 +34,7 @@ def main() -> None:
         repeat_report = work / "fallthrough-repeat.txt"
 
         command = [
-            str(GHIDRA / "support" / "analyzeHeadless"),
+            analyze_headless(GHIDRA),
             str(project),
             "bank-boundary",
             "-import",

@@ -18,7 +18,12 @@ The script compiles a temporary copy twice and checks that the output matches. I
 
 ## Runtime P-code tests
 
-Use Java 21, Gradle 8.5, and Ghidra 12.1.4:
+Use a JDK and Gradle version compatible with the selected Ghidra release. The
+CI baseline is Ghidra 12.1.4 with Java 21 and Gradle 8.5. Ghidra 12.2 requires
+Java 25 or newer for its compiled libraries and its `buildExtension.gradle`
+requires Gradle 9.1 or newer.
+
+For the CI baseline:
 
 ```sh
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC

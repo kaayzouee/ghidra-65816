@@ -20,11 +20,14 @@ work_root="$(mktemp -d)"
 trap 'rm -rf "$work_root"' EXIT
 
 if [[ $# -eq 2 ]]; then
-  language_dir="$(mkdir -p "$2" && cd "$2" && pwd)"
-  cp -a "$repo_root/data/languages/." "$language_dir/"
-  # Compile through the same relative path used by the original check, while
-  # keeping generated .sla files in the requested external-module directory.
-  ln -s "$language_dir" "$work_root/languages"
+  output_language_dir="$(mkdir -p "$2" && cd "$2" && pwd)"
+  rm -f "$output_language_dir"/*.sla "$output_language_dir"/*.sla.lock
+  cp -a "$repo_root/data/languages/." "$output_language_dir/"
+  # Compile from a real temporary directory. A symlink into an external module
+  # works on Unix but Git Bash can leave the generated SLA outside the target
+  # on Windows, so copy the verified artifact to the requested destination.
+  language_dir="$work_root/languages"
+  cp -a "$repo_root/data/languages" "$language_dir"
 else
   language_dir="$work_root/languages"
   cp -a "$repo_root/data/languages" "$language_dir"
@@ -83,3 +86,7 @@ if ! diff -u "$work_root/first.sha256" "$work_root/second.sha256"; then
 fi
 
 echo "SLEIGH compilation succeeded; generated SLA output is reproducible."
+
+if [[ -n "${output_language_dir:-}" ]]; then
+  cp "$language_dir/65816.sla" "$output_language_dir/"
+fi

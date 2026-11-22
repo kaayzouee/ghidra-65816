@@ -7,6 +7,8 @@ import re
 import subprocess
 import tempfile
 
+from ghidra_paths import analyze_headless
+
 ROOT = Path(__file__).resolve().parents[2]
 GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 CODE_BASE = 0x128000
@@ -36,7 +38,7 @@ def main() -> None:
         project.mkdir()
 
         command = [
-            str(GHIDRA / "support" / "analyzeHeadless"), str(project), "absolute-targets",
+            analyze_headless(GHIDRA), str(project), "absolute-targets",
             "-import", str(rom_path), "-loader", "BinaryLoader",
             "-loader-baseAddr", hex(CODE_BASE), "-processor", "65816:LE:16:default",
             "-noanalysis", "-scriptPath", str(ROOT / "tests"),
