@@ -110,6 +110,28 @@ public class G65816AbsoluteTargetCheck extends GhidraScript {
                         + ", got " + flowType);
                 }
             }
+
+            long[] displayOffsets = {26, 28, 31};
+            String[] displayMnemonics = {"WDM", "PER", "PER"};
+            int[] displayLengths = {2, 3, 3};
+            for (int i = 0; i < displayOffsets.length; i++) {
+                Address address = toAddr(codeBase + displayOffsets[i]);
+                DisassembleCommand command = new DisassembleCommand(address, null, false);
+                command.setInitialContext(initialContext);
+                if (!command.applyTo(currentProgram, monitor)) {
+                    throw new IllegalStateException("Disassembly failed at " + address);
+                }
+                Instruction instruction = currentProgram.getListing().getInstructionAt(address);
+                if (instruction == null ||
+                        !displayMnemonics[i].equals(instruction.getMnemonicString()) ||
+                        instruction.getLength() != displayLengths[i]) {
+                    throw new AssertionError("Unexpected instruction at " + address
+                        + ": " + instruction);
+                }
+                out.printf("%06x|%s|%s|%06x%n", address.getOffset(),
+                    instruction.getMnemonicString(),
+                    instruction.getDefaultOperandRepresentation(0), 0);
+            }
         }
     }
 }
