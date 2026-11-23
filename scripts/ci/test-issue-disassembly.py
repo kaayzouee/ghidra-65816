@@ -24,6 +24,8 @@ XCE_CASES = [
     "18 fb c2 30 a9 34 12 60",
     "e2 01 fb c2 30 a9 56 60",
     "c2 01 fb c2 30 a9 78 56 60",
+    "18 80 01 38 fb c2 30 a9 34 12 60",
+    "18 d0 01 38 fb c2 30 a9 34 12 60",
 ]
 ROM = ROM.ljust(0x100, bytes(1)) + b"".join(
     bytes.fromhex(case).ljust(0x10, bytes(1)) for case in XCE_CASES
@@ -86,6 +88,20 @@ def main() -> None:
                 raise AssertionError(
                     f"{address:06x}: expected {mnemonic}/{length}, got {got}"
                 )
+        bypass = actual.get(0x8167)
+        if bypass is None or bypass[:2] != ("LDA", 3):
+            raise AssertionError(
+                f"Unconditional branch bypassing SEC should preserve native LDA/3: {bypass}"
+            )
+        merge_lines = [
+            line for line in listing.splitlines() if line.startswith("XCE_BRANCH|")
+        ]
+        if len(merge_lines) != 1:
+            raise AssertionError(f"Missing XCE branch-merge diagnostic: {merge_lines}")
+        merge_length = int(merge_lines[0].split("|")[1])
+        if merge_length not in (2, 3):
+            raise AssertionError(f"Unexpected LDA length at ambiguous XCE: {merge_length}")
+
         bad_references = [
             f"{address:06x}" for address, (_, _, selfrefs) in actual.items()
             if selfrefs != 0
@@ -95,6 +111,8 @@ def main() -> None:
         if "FAILED " in decompiled or "0x35" not in decompiled or "0x13" not in decompiled:
             raise AssertionError("Decompiler did not preserve the immediate constants:\\n" + decompiled)
         print(f"Issue disassembly regressions: {len(EXPECTED)} instructions, no self references, constants preserved")
+        print(f"XCE branch bypass: native LDA/3; conditional merge: LDA/{merge_length} "
+              "(branch path requires 3, SEC path requires 2)")
 
 
 if __name__ == "__main__":

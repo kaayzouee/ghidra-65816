@@ -69,6 +69,50 @@ public class G65816IssueCheck extends GhidraScript {
                 }
             }
 
+            for (int i = 0; i < 2; i++) {
+                long startOffset = 0x8160 + i * 0x10;
+                RegisterValue initial = new RegisterValue(context);
+                for (String name : new String[] { "ctx_MF", "ctx_XF", "ctx_EF" }) {
+                    initial = initial.assign(lang.getRegister(name), BigInteger.ZERO);
+                }
+                DisassembleCommand branchCommand = new DisassembleCommand(
+                    toAddr(startOffset), null, true);
+                branchCommand.setInitialContext(initial);
+                if (!branchCommand.applyTo(currentProgram, monitor)) {
+                    throw new AssertionError("XCE branch disassembly failed at " + startOffset);
+                }
+                Instruction branch = currentProgram.getListing().getInstructionAt(
+                    toAddr(startOffset + 1));
+                String expectedBranch = i == 0 ? "BRA" : "BNE";
+                if (branch == null || !expectedBranch.equals(branch.getMnemonicString())) {
+                    throw new AssertionError("Expected " + expectedBranch + " at "
+                        + toAddr(startOffset + 1));
+                }
+                Instruction sec = currentProgram.getListing().getInstructionAt(
+                    toAddr(startOffset + 3));
+                if (i == 0 && sec != null) {
+                    throw new AssertionError("Unreachable SEC was disassembled");
+                }
+                if (i == 1 && (sec == null || !"SEC".equals(sec.getMnemonicString()))) {
+                    throw new AssertionError("Conditional fallthrough did not reach SEC");
+                }
+                Instruction xce = currentProgram.getListing().getInstructionAt(
+                    toAddr(startOffset + 4));
+                Instruction lda = currentProgram.getListing().getInstructionAt(
+                    toAddr(startOffset + 7));
+                if (xce == null || !"XCE".equals(xce.getMnemonicString())
+                        || lda == null || !"LDA".equals(lda.getMnemonicString())) {
+                    throw new AssertionError("XCE or following LDA missing after branch");
+                }
+                if (i == 0 && lda.getLength() != 3) {
+                    throw new AssertionError("BRA bypass should decode native LDA/3, got "
+                        + lda.getLength());
+                }
+                if (i == 1) {
+                    out.printf("XCE_BRANCH|%d%n", lda.getLength());
+                }
+            }
+
             createFunction(entry, "reset");
             Function function = getFunctionAt(decompileAddress);
             if (function == null) {
