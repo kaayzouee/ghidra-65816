@@ -7,6 +7,7 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.symbol.SourceType;
+import ghidra.program.model.symbol.RefType;
 
 public class G65816CalleeWidthCheck extends GhidraScript {
     private Instruction require(long offset, String mnemonic) {
@@ -26,7 +27,7 @@ public class G65816CalleeWidthCheck extends GhidraScript {
             native16 = native16.assign(lang.getRegister(register), BigInteger.ZERO);
         }
 
-        for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340, 0x8380, 0x83c0, 0x8400, 0x8440, 0x8480, 0x84c0, 0x8500, 0x8540, 0x8580, 0x85c0 }) {
+        for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340, 0x8380, 0x83c0, 0x8400, 0x8440, 0x8480, 0x84c0, 0x8500, 0x8540, 0x8580, 0x85c0, 0x8600, 0x8640 }) {
             Address start = toAddr(entry);
             DisassembleCommand command = new DisassembleCommand(start, null, true);
             command.setInitialContext(native16);
@@ -40,7 +41,19 @@ public class G65816CalleeWidthCheck extends GhidraScript {
         analyzeAll(currentProgram);
         currentProgram.getSymbolTable().createLabel(
             toAddr(0x8305), "PRESERVED_USER_CODE", SourceType.USER_DEFINED);
+        currentProgram.getReferenceManager().addMemoryReference(
+            toAddr(0x8605), toAddr(0x8600), RefType.DATA, SourceType.USER_DEFINED, 0);
         runScript("Repair65816CalleeWidths.java", new String[] { getScriptArgs()[1] });
+        boolean preservedReference = false;
+        for (var reference : currentProgram.getReferenceManager().getReferencesFrom(toAddr(0x8605))) {
+            if (reference.getSource() == SourceType.USER_DEFINED
+                    && reference.getToAddress().equals(toAddr(0x8600))) {
+                preservedReference = true;
+            }
+        }
+        if (!preservedReference) {
+            throw new AssertionError("User-defined outgoing reference was deleted");
+        }
         require(0x8202, "JSR");
         require(0x8210, "SEP");
         require(0x8212, "RTS");
@@ -86,9 +99,16 @@ public class G65816CalleeWidthCheck extends GhidraScript {
         require(0x85d2, "NOP");
         require(0x85d3, "SEP");
         require(0x85d5, "RTS");
+        require(0x8602, "JSR");
+        require(0x8610, "SEP");
+        require(0x8612, "RTS");
+        require(0x8642, "JSR");
+        require(0x8650, "SEP");
+        require(0x8652, "RTS");
+        require(0x8648, "JSR");
 
         try (PrintStream out = new PrintStream(getScriptArgs()[0])) {
-            for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340, 0x8380, 0x83c0, 0x8400, 0x8440, 0x8480, 0x84c0, 0x8500, 0x8540, 0x8580, 0x85c0 }) {
+            for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340, 0x8380, 0x83c0, 0x8400, 0x8440, 0x8480, 0x84c0, 0x8500, 0x8540, 0x8580, 0x85c0, 0x8600, 0x8640 }) {
                 long postCall = entry + (entry == 0x8340 ? 6 : 5);
                 Instruction lda = require(postCall, "LDA");
                 Instruction ldx = currentProgram.getListing().getInstructionAt(toAddr(postCall + 2));
