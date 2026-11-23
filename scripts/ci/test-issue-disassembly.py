@@ -17,6 +17,18 @@ ROM = bytes.fromhex("""
     20 a9 34 12 18 69 01 01 8d 00 03 e2 20 60
 """)
 
+XCE_CASES = [
+    "38 fb c2 30 a9 12 60",
+    "38 fb c2 30 a9 34 60",
+    "18 fb c2 30 a9 34 12 60",
+    "18 fb c2 30 a9 34 12 60",
+    "e2 01 fb c2 30 a9 56 60",
+    "c2 01 fb c2 30 a9 78 56 60",
+]
+ROM = ROM.ljust(0x100, bytes(1)) + b"".join(
+    bytes.fromhex(case).ljust(0x10, bytes(1)) for case in XCE_CASES
+)
+
 EXPECTED = {
     0x8000: ("SEI", 1), 0x8001: ("CLC", 1), 0x8002: ("XCE", 1),
     0x8003: ("LDX", 2), 0x8005: ("STZ", 3), 0x8008: ("LDA", 2),

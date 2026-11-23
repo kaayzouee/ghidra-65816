@@ -44,6 +44,31 @@ public class G65816IssueCheck extends GhidraScript {
                             "Subroutine disassembly failed: " + subroutineCommand.getStatusMsg());
                 }
             }
+            long[] xceStarts = {0x8100, 0x8110, 0x8120, 0x8130, 0x8140, 0x8150};
+            int[] xceModes = {0, 1, 0, 1, 0, 1};
+            int[] ldaOffsets = {4, 4, 4, 4, 5, 5};
+            int[] ldaLengths = {2, 2, 3, 3, 2, 3};
+            for (int i = 0; i < xceStarts.length; i++) {
+                RegisterValue initial = new RegisterValue(context);
+                for (String name : new String[] { "ctx_MF", "ctx_XF", "ctx_EF" }) {
+                    initial = initial.assign(lang.getRegister(name),
+                        BigInteger.valueOf(xceModes[i]));
+                }
+                Address start = toAddr(xceStarts[i]);
+                DisassembleCommand xceCommand = new DisassembleCommand(start, null, true);
+                xceCommand.setInitialContext(initial);
+                if (!xceCommand.applyTo(currentProgram, monitor)) {
+                    throw new AssertionError("XCE sequence did not disassemble at " + start);
+                }
+                Address ldaAddress = toAddr(xceStarts[i] + ldaOffsets[i]);
+                Instruction lda = currentProgram.getListing().getInstructionAt(ldaAddress);
+                if (lda == null || !"LDA".equals(lda.getMnemonicString())
+                        || lda.getLength() != ldaLengths[i]) {
+                    throw new AssertionError("Wrong decode after XCE at " + ldaAddress
+                        + ": expected LDA/" + ldaLengths[i] + ", got " + lda);
+                }
+            }
+
             createFunction(entry, "reset");
             Function function = getFunctionAt(decompileAddress);
             if (function == null) {
