@@ -53,7 +53,7 @@ jobs:
             release_date: "20261016"
             sha256: "2c2cd776db3c1f6a097ba418922378ac3649cadd5e844a6f5f088ae628a7be67"
             java: "25"
-            gradle: "9.1"
+            gradle: "9.1.0"
 
     steps:
       - name: Checkout
