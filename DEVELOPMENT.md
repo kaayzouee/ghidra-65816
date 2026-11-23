@@ -19,7 +19,7 @@ The script compiles a temporary copy twice and checks that the output matches. I
 ## Runtime P-code tests
 
 CI tests Ghidra 12.1, 12.1.2, 12.1.3, and 12.1.4 with Java 21 and Gradle 8.5,
-and Ghidra 12.2 with Java 25 and Gradle 9.1. There is no published 12.1.1 release.
+and Ghidra 12.2 with Java 25 and Gradle 9.1.0. There is no published 12.1.1 release.
 The optional full SingleStepTests workflow remains pinned to 12.1.4.
 
 For a Ghidra 12.1.4 installation:
