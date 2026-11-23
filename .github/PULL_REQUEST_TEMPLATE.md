@@ -1,43 +1,53 @@
 ## Summary
 
-<!-- What does this change, and why? -->
+<!-- Describe the problem and what changed in 1–3 sentences. -->
+Related issue or PR: N/A
 
 ## Change type
 
 - [ ] Bug fix
 - [ ] CPU semantics / P-code
-- [ ] Instruction decoding or disassembly
-- [ ] Tests / CI
+- [ ] Disassembly / analysis
+- [ ] SNES loader / optional integration
+- [ ] Tests / CI / build
 - [ ] Documentation
-- [ ] Build / developer tooling
-- [ ] Other
+- [ ] Maintenance / refactor
 
-## Technical details
+## Scope and approach
 
-<!-- Mention relevant instructions, addressing modes, registers, flags, memory effects, and control-flow changes. -->
+<!-- Describe key implementation choices and what this PR deliberately does not address. -->
+**Changed behavior:** N/A
+**Out of scope:** N/A
+
+## Evidence
+
+<!-- Bugs: failing-before/passing-after case. CPU changes: datasheet and independent evidence. Otherwise N/A with reason. -->
+**Reproduction / before:** N/A
+**Expected / after:** N/A
+**References / fixtures:** N/A
 
 ## Validation
 
-- [ ] `python3 -m unittest discover --start-directory tests --verbose`
-- [ ] SLEIGH compiled with the Ghidra version pinned in CI
-- [ ] `gradle test` / runtime P-code tests run (when applicable)
-- [ ] Added or updated focused regression tests
-- [ ] Checked the diff for unintended changes
+<!-- Replace each result with Pass, Fail, Not run (reason), or N/A (reason). Link CI and state tested Ghidra versions. -->
+| Check | Result / environment / link |
+| --- | --- |
+| Python: `python3 -m unittest discover --start-directory tests --verbose` | Not run — reason |
+| SLEIGH: `bash scripts/ci/compile-sleigh.sh "$GHIDRA_INSTALL_DIR"` | Not run — reason |
+| Focused headless: relevant `scripts/ci/test-*.py` | N/A — reason |
+| Runtime P-code: `gradle test` (see `DEVELOPMENT.md`) | Not run — reason |
+| Full Ghidra CI matrix (12.1–12.2) | Pending — link |
 
-**Test results / CI link:**
+## Compatibility and risk
 
-<!-- Include commands run and results. If a check was not run, explain why. -->
+**Affected versions / users:** N/A
+**Safety, data loss, untrusted inputs, or rollback:** N/A
+**Known limitations:** N/A
 
-## CPU-semantics evidence (when applicable)
+## Review checklist
 
-<!-- Cite the W65C816 reference, trusted test vectors, or an independent emulator. Avoid claiming correctness from compilation alone. -->
-
-**Reference / test-vector links:**
-
-## Compatibility and scope
-
-<!-- Describe user-visible behavior changes, limitations, or follow-up work. -->
-
-- [ ] Documentation updated where needed
-- [ ] No generated build artifacts or unrelated files included
-- [ ] Security and trust-boundary implications considered, if applicable
+- [ ] One focused change; final diff reviewed; no unrelated or generated files.
+- [ ] Current supported Ghidra APIs used, or exceptions documented.
+- [ ] Focused positive and negative regression tests, or N/A explained.
+- [ ] Documentation and scope updated as needed, or N/A explained.
+- [ ] Simple code with only necessary comments.
+- [ ] One squashed commit; final-head CI verified before requesting merge.
