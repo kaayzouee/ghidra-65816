@@ -2017,7 +2017,7 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
 {
 }
 
-:WDM    is op=0x42; unused8  {}
+:WDM $unused8    is op=0x42; unused8  {}
 
 :XBA    is op=0xeb
 {

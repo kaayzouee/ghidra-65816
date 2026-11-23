@@ -14,13 +14,20 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 CODE_BASE = 0x128000
 ROM = bytes.fromhex(
     "4c 34 12 20 78 56 5c 78 56 34 22 bc 9a 78 "
-    "6c 34 12 7c 34 12 dc 34 12 fc 34 12"
+    "6c 34 12 7c 34 12 dc 34 12 fc 34 12 "
+    "42 7f 62 02 00 62 fe ff"
 )
 EXPECTED = {
     CODE_BASE: ("JMP", 0x121234),
     CODE_BASE + 3: ("JSR", 0x125678),
     CODE_BASE + 6: ("JML", 0x345678),
     CODE_BASE + 10: ("JSL", 0x789ABC),
+}
+
+DISPLAY_EXPECTED = {
+    CODE_BASE + 26: ("WDM", "7f"),
+    CODE_BASE + 28: ("PER", "128021"),
+    CODE_BASE + 31: ("PER", "128020"),
 }
 
 
@@ -64,9 +71,10 @@ def main() -> None:
                 address, mnemonic, operand, target = fields
                 actual[int(address, 16)] = (mnemonic, operand, int(target, 16))
 
-        if set(actual) != set(EXPECTED):
+        expected_addresses = set(EXPECTED) | set(DISPLAY_EXPECTED)
+        if set(actual) != expected_addresses:
             raise AssertionError(
-                f"Expected checks at {sorted(EXPECTED)}, got {sorted(actual)}"
+                f"Expected checks at {sorted(expected_addresses)}, got {sorted(actual)}"
             )
         for address, (expected_mnemonic, expected_target) in EXPECTED.items():
             mnemonic, operand, target = actual[address]
@@ -81,7 +89,15 @@ def main() -> None:
                     f"{address:06x}: operand '{operand}' does not show full target {full_target}"
                 )
 
-        print("Absolute target display regressions: 4 direct and 4 computed-indirect forms checked")
+        for address, (expected_mnemonic, expected_operand) in DISPLAY_EXPECTED.items():
+            mnemonic, operand, _ = actual[address]
+            if mnemonic != expected_mnemonic or expected_operand not in normalized_operand(operand):
+                raise AssertionError(
+                    f"{address:06x}: expected {expected_mnemonic} operand {expected_operand}, "
+                    f"got {mnemonic} {operand!r}"
+                )
+
+        print("Operand display: 4 direct, 4 indirect, 3 PER/WDM cases checked")
 
 
 if __name__ == "__main__":

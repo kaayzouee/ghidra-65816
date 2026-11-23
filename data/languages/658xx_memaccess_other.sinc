@@ -17,14 +17,9 @@ MemStackInd: (<$imm8)    is imm8  {
 }
 
 # Stack PC relative. For PER only, don't confuse with stack relative.
-MemStackPCRel: rel16    is rel16  {
-    # Make sure that the PC of the next instruction is actually correct
-    # (account for wrapping to stay within the PBR). I don't think Ghidra
-    # will do this naturally due to the way I have defined the PC.
-    local this_pc_full:3 = inst_start;
-    local this_pbr:1 = this_pc_full(2);
-
-    local pc_next:3 = (zext(this_pbr) << 16) | (inst_next & 0xFFFF);
-    local data:2 = pc_next:2 + rel16;
+MemStackPCRel: $target    is rel16
+    [ target = (inst_start $and 0xff0000) $or ((inst_next + rel16) $and 0xffff); ]
+{
+    local data:2 = target;
     export data;
 }

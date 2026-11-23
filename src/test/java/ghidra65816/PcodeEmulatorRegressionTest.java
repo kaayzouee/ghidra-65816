@@ -623,6 +623,20 @@ class PcodeEmulatorRegressionTest {
     }
 
     @Test
+    void perPushesWrappedPcRelativeValue() throws Exception {
+        Run run = startAt(0x12fffd, new byte[] {0x62, 0x02, 0x00});
+        setContextBit(run, "ctx_EF", 0);
+        writeRegister(run, "PC", 0xfffd);
+        writeRegister(run, "PBR", 0x12);
+        writeRegister(run, "SP", 0x01ff);
+
+        executeOne(run);
+
+        assertEquals(0x0002, readMemory(run, 0x01fe, 2));
+        assertEquals(0x01fd, readRegister(run, "SP"));
+    }
+
+    @Test
     void singleByteXbaAtProgramBankEndExecutes() throws Exception {
         Run run = startAt(0x12ffff, new byte[] {(byte) 0xeb}); // XBA
         setContextBit(run, "ctx_EF", 0);
