@@ -86,6 +86,12 @@ public class Repair65816CalleeWidths extends GhidraScript {
                 || call.getFlows().length != 1 || !call.getFlows()[0].isMemoryAddress()) {
             return false;
         }
+        int opcode = call.getBytes()[0] & 0xff;
+        if (opcode != ("JSR".equals(callType) ? 0x20 : 0x22)
+                || !call.getAddress().getAddressSpace().equals(
+                    currentProgram.getAddressFactory().getDefaultAddressSpace())) {
+            return false;
+        }
         Listing listing = currentProgram.getListing();
         Instruction setter = listing.getInstructionAt(call.getFlows()[0]);
         if (setter == null || setter.getLength() != 2
