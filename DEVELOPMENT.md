@@ -68,6 +68,14 @@ This strict gate is only a test gate, not a workaround. The current SLEIGH modul
 
 The optional `.github/workflows/singlestep-full.yml` workflow runs 25,600 cases. It is not access-controlled by YAML alone: configure GitHub Actions workflow execution protection under **Settings → Actions → Policies** for this workflow, allowing only `workflow_dispatch` and maintainers/admins.
 
+## Submitting pull requests
+
+1. Start from current `master`; keep a PR to one reviewable issue or feature slice. Avoid bundling unrelated fixes, formatting, or generated files.
+2. Use [the PR template](.github/PULL_REQUEST_TEMPLATE.md) unchanged. Fill its existing fields in the **PR description**, including when creating a PR through an API or agent. Keep all headings and validation rows; use `N/A — reason` for irrelevant checks. Do not edit the template file to describe individual PRs.
+3. Include the relevant before/after regression or a reason tests do not apply. Identify versions, CPU references, untrusted inputs, and analyst-data preservation where relevant. Prefer supported non-deprecated Ghidra APIs, small methods, and minimal comments.
+4. Run focused checks, then review the full CI matrix. Report actual results and links, not assumed success. See the test setup above.
+5. Squash into **one commit** before declaring the PR ready, review the final diff, and check CI on the final commit. Merge only with explicit approval.
+
 ## Before changing CPU semantics
 
 1. Add a focused regression that fails before the fix.
