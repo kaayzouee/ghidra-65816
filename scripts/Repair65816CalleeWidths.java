@@ -1,4 +1,4 @@
-// Repair isolated continuations after direct calls to SEP/REP #$10/#$20/#$30 leaves.
+// Repair isolated continuations after one or two adjacent SEP/REP width setters.
 // @category 65816
 import java.io.PrintStream;
 import java.math.BigInteger;
@@ -93,28 +93,48 @@ public class Repair65816CalleeWidths extends GhidraScript {
             return false;
         }
         Listing listing = currentProgram.getListing();
+        var ef = currentProgram.getRegister("ctx_EF");
         Instruction setter = listing.getInstructionAt(call.getFlows()[0]);
-        if (setter == null || setter.getLength() != 2
-                || (!"SEP".equals(setter.getMnemonicString())
-                    && !"REP".equals(setter.getMnemonicString()))) {
-            return false;
+        int setM = -1;
+        int setX = -1;
+        boolean returns = false;
+        String returnMnemonic = "JSR".equals(callType) ? "RTS" : "RTL";
+        for (int i = 0; i < 2; i++) {
+            if (setter == null || setter.getLength() != 2
+                    || !BigInteger.ZERO.equals(setter.getValue(ef, false))) {
+                return false;
+            }
+            String mnemonic = setter.getMnemonicString();
+            if (!"SEP".equals(mnemonic) && !"REP".equals(mnemonic)) {
+                return false;
+            }
+            int mask = setter.getBytes()[1] & 0xff;
+            if (mask != 0x10 && mask != 0x20 && mask != 0x30) {
+                return false;
+            }
+            int width = "SEP".equals(mnemonic) ? 1 : 0;
+            if ((mask & 0x20) != 0) {
+                setM = width;
+            }
+            if ((mask & 0x10) != 0) {
+                setX = width;
+            }
+            Address nextAddress = setter.getFallThrough();
+            Instruction next = nextAddress == null ? null : listing.getInstructionAt(nextAddress);
+            if (next != null && returnMnemonic.equals(next.getMnemonicString())) {
+                returns = true;
+                break;
+            }
+            setter = next;
         }
-        int mask = setter.getBytes()[1] & 0xff;
-        if (mask != 0x10 && mask != 0x20 && mask != 0x30) {
-            return false;
-        }
-        Instruction ret = listing.getInstructionAt(setter.getFallThrough());
-        if (ret == null || !("JSR".equals(callType) ? "RTS" : "RTL")
-                .equals(ret.getMnemonicString())) {
+        if (!returns) {
             return false;
         }
         Address continuation = call.getFallThrough();
         Instruction first = continuation == null ? null : listing.getInstructionAt(continuation);
         var mf = currentProgram.getRegister("ctx_MF");
         var xf = currentProgram.getRegister("ctx_XF");
-        var ef = currentProgram.getRegister("ctx_EF");
-        if (first == null || !BigInteger.ZERO.equals(call.getValue(ef, false))
-                || !BigInteger.ZERO.equals(setter.getValue(ef, false))) {
+        if (first == null || !BigInteger.ZERO.equals(call.getValue(ef, false))) {
             return false;
         }
         BigInteger oldM = first.getValue(mf, false);
@@ -126,9 +146,8 @@ public class Repair65816CalleeWidths extends GhidraScript {
                 || !oldX.equals(call.getValue(xf, false))) {
             return false;
         }
-        int width = "SEP".equals(setter.getMnemonicString()) ? 1 : 0;
-        int m = (mask & 0x20) != 0 ? width : oldM.intValue();
-        int x = (mask & 0x10) != 0 ? width : oldX.intValue();
+        int m = setM < 0 ? oldM.intValue() : setM;
+        int x = setX < 0 ? oldX.intValue() : setX;
         if (oldM.intValue() == m && oldX.intValue() == x) {
             return false;
         }
