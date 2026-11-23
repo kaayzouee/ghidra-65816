@@ -8,7 +8,7 @@ Run the source-level regression tests:
 python3 -m unittest discover --start-directory tests --verbose
 ```
 
-Compile SLEIGH with the Ghidra version pinned in CI (currently 12.1.4):
+Compile SLEIGH with any Ghidra release covered by CI (12.1, 12.1.2, 12.1.3, 12.1.4, or 12.2):
 
 ```sh
 bash scripts/ci/compile-sleigh.sh /path/to/ghidra_12.1.4_PUBLIC
@@ -18,12 +18,11 @@ The script compiles a temporary copy twice and checks that the output matches. I
 
 ## Runtime P-code tests
 
-Use a JDK and Gradle version compatible with the selected Ghidra release. The
-CI baseline is Ghidra 12.1.4 with Java 21 and Gradle 8.5. Ghidra 12.2 requires
-Java 25 or newer for its compiled libraries and its `buildExtension.gradle`
-requires Gradle 9.1 or newer.
+CI tests Ghidra 12.1, 12.1.2, 12.1.3, and 12.1.4 with Java 21 and Gradle 8.5,
+and Ghidra 12.2 with Java 25 and Gradle 9.1. There is no published 12.1.1 release.
+The optional full SingleStepTests workflow remains pinned to 12.1.4.
 
-For the CI baseline:
+For a Ghidra 12.1.4 installation:
 
 ```sh
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
@@ -77,6 +76,9 @@ The optional `.github/workflows/singlestep-full.yml` workflow runs 25,600 cases.
 
 A passing test suite is evidence, not proof of complete hardware behavior. Immediate operands are constants; `WAI` is modelled as fall-through and `STP` as a self-loop.
 
-## Updating the Ghidra version
+## Updating the Ghidra versions
 
-Update `GHIDRA_VERSION`, `GHIDRA_RELEASE_DATE`, and `GHIDRA_SHA256` together in `.github/workflows/sleigh.yml`, using the [official releases](https://github.com/NationalSecurityAgency/ghidra/releases) page.
+Add or update the version, release date, SHA-256, Java version, and Gradle version
+together in the matrix in `.github/workflows/sleigh.yml`, using the
+[official Ghidra releases](https://github.com/NationalSecurityAgency/ghidra/releases).
+Run the full SingleStepTests workflow separately when changing its pinned version.
