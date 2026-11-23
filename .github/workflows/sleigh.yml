@@ -110,6 +110,9 @@ jobs:
       - name: Run headless disassembly regressions
         run: python scripts/ci/test-issue-disassembly.py
 
+      - name: Characterize M/X widths after subroutine returns
+        run: python scripts/ci/test-callee-width.py
+
       - name: Characterize instruction fetch at program-bank boundary
         env:
           GHIDRA_BANK_WRAP_REQUIRED: ${{ github.event_name == 'workflow_dispatch' && inputs.require_bank_wrap && '1' || '0' }}
