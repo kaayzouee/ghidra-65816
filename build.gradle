@@ -14,7 +14,7 @@ dependencies {
 
 def ghidraInstallDir = System.getenv('GHIDRA_INSTALL_DIR')
 if (!ghidraInstallDir) {
-    throw new GradleException('GHIDRA_INSTALL_DIR must point to a Ghidra 12.1.4 installation')
+    throw new GradleException('GHIDRA_INSTALL_DIR must point to a Ghidra installation')
 }
 
 apply from: new File(ghidraInstallDir, 'support/buildExtension.gradle')

@@ -22,9 +22,38 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate 65816 language
+    name: Ghidra ${{ matrix.version }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "12.1"
+            release_date: "20260513"
+            sha256: "aa5cbcbbf48f41ca185fce900e19592f1ade4cd5994eb6e0ede468dac8a6f302"
+            java: "21"
+            gradle: "8.5"
+          - version: "12.1.2"
+            release_date: "20260605"
+            sha256: "b62e81a0390618466c019c60d8c2f796ced2509c4c1aea4a37644a77272cf99d"
+            java: "21"
+            gradle: "8.5"
+          - version: "12.1.3"
+            release_date: "20260817"
+            sha256: "93a5d11a9ad510622acaaf908c556a7b9b764d338e78a7567f3689bf5081fd54"
+            java: "21"
+            gradle: "8.5"
+          - version: "12.1.4"
+            release_date: "20260921"
+            sha256: "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
+            java: "21"
+            gradle: "8.5"
+          - version: "12.2"
+            release_date: "20261016"
+            sha256: "2c2cd776db3c1f6a097ba418922378ac3649cadd5e844a6f5f088ae628a7be67"
+            java: "25"
+            gradle: "9.1.0"
 
     steps:
       - name: Checkout
@@ -42,14 +71,14 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: ${{ matrix.java }}
 
       - name: Download and verify pinned Ghidra release
         id: ghidra
         env:
-          GHIDRA_VERSION: "12.1.4"
-          GHIDRA_RELEASE_DATE: "20260921"
-          GHIDRA_SHA256: "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
+          GHIDRA_VERSION: ${{ matrix.version }}
+          GHIDRA_RELEASE_DATE: ${{ matrix.release_date }}
+          GHIDRA_SHA256: ${{ matrix.sha256 }}
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/ghidra.zip"
@@ -98,7 +127,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.5"
+          gradle-version: ${{ matrix.gradle }}
 
       - name: Fetch bounded SingleStepTests subset
         run: python scripts/ci/fetch-singlestep-subset.py build/singlestep/subset.json 10
@@ -112,7 +141,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-test-diagnostics
+          name: runtime-test-diagnostics-${{ matrix.version }}
           if-no-files-found: ignore
           path: |
             build/test-results/test/**
