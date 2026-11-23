@@ -31,14 +31,14 @@ def fetch_json(url: str) -> list[dict]:
         url, headers={"User-Agent": "ghidra-65816-singlestep-ci"}
     )
     last_error = None
-    for attempt in range(3):
+    for attempt in range(6):
         try:
             with urllib.request.urlopen(request, timeout=45) as response:
                 return json.load(response)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             last_error = exc
-            if attempt < 2:
-                time.sleep(attempt + 1)
+            if attempt < 5:
+                time.sleep(2 ** attempt)
     raise RuntimeError(f"failed to fetch valid JSON from {url}: {last_error}")
 
 
