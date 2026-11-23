@@ -306,7 +306,7 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertEqual(len(blocks), 4)
         for mode, macro in (("0", "native"), ("1", "emulation")):
             constructors = [(header, body) for header, body in blocks
-                            if f"ctx_EF={mode}" in header]
+                            if f"is ctx_EF={mode} &" in header]
             self.assertEqual(len(constructors), 2)
             self.assertEqual(sum("ctx_carry=2" in header for header, _ in constructors), 1)
             self.assertTrue(all(f"xce_from_{macro}();" in body for _, body in constructors))
