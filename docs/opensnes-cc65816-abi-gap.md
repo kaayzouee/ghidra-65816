@@ -1,6 +1,6 @@
 # OpenSNES cc65816 ABI: model gap and candidate design
 
-**Updated:** 2026-10-28 · Research for P3 in [the scope work roadmap](pr28-scope-work-roadmap.md).
+**Updated:** 2026-11-23 · Research for P3 in [the scope work roadmap](pr28-scope-work-roadmap.md).
 
 ## Public ABI facts
 
@@ -20,7 +20,7 @@ The current optional __near and __far prototypes in 65816.cspec intentionally us
 
 Ghidra's [standard prototype strategy](https://lemuellew.github.io/Ghidra-Compiler-Specification-Document/cspec_parampass.html) allocates parameters by walking its ordered pentry resource list. A plain stack pentry at offset 4 assigns the first formal parameter the lowest stack slot; that is opposite the OpenSNES source-order layout. The reversejustify behavior for stack pointers is about padding/justification, not reversing all formal parameters.
 
-There is an upstream Ghidra proposal, [PR #9921](https://github.com/NationalSecurityAgency/ghidra/pull/9921), for an input stackltr="true" attribute that mirrors assigned stack parameter locations and reverses recovered stack trials. As of this update, that PR is open, not merged. The repository pins Ghidra 12.1.4; adding stackltr to the active compiler spec now would risk an unsupported or silently ignored attribute and incorrect decompilation.
+There is an upstream Ghidra proposal, [PR #9921](https://github.com/NationalSecurityAgency/ghidra/pull/9921), for an input stackltr="true" attribute that mirrors assigned stack parameter locations and reverses recovered stack trials. As of this update, that PR is open, not merged. The supported Ghidra versions (12.1–12.2) do not include this attribute; enabling it now could produce incorrect decompilation.
 
 There is a second limitation: the compiler's 32-bit result is split between the accumulator and tcc__retval_hi, rather than a normal contiguous return varnode. Even with left-to-right stack argument allocation available, a full compiler ABI model needs an independent decision for 32-bit and pointer returns.
 
