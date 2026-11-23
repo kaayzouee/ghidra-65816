@@ -26,7 +26,7 @@ public class G65816CalleeWidthCheck extends GhidraScript {
             native16 = native16.assign(lang.getRegister(register), BigInteger.ZERO);
         }
 
-        for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340 }) {
+        for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340, 0x8380, 0x83c0, 0x8400, 0x8440, 0x8480 }) {
             Address start = toAddr(entry);
             DisassembleCommand command = new DisassembleCommand(start, null, true);
             command.setInitialContext(native16);
@@ -59,9 +59,19 @@ public class G65816CalleeWidthCheck extends GhidraScript {
         require(0x8342, "JSL");
         require(0x8350, "SEP");
         require(0x8352, "RTL");
+        require(0x8390, "SEP");
+        require(0x8392, "RTS");
+        require(0x83d0, "REP");
+        require(0x83d2, "RTS");
+        require(0x8410, "SEP");
+        require(0x8412, "RTS");
+        require(0x8450, "SEP");
+        require(0x8452, "RTS");
+        require(0x8490, "REP");
+        require(0x8492, "RTS");
 
         try (PrintStream out = new PrintStream(getScriptArgs()[0])) {
-            for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340 }) {
+            for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340, 0x8380, 0x83c0, 0x8400, 0x8440, 0x8480 }) {
                 long postCall = entry + (entry == 0x8340 ? 6 : 5);
                 Instruction lda = require(postCall, "LDA");
                 Instruction ldx = currentProgram.getListing().getInstructionAt(toAddr(postCall + 2));

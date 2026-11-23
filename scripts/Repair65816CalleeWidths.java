@@ -1,4 +1,4 @@
-// Repair short, isolated continuations after direct calls to SEP/REP + RTS/RTL leaves.
+// Repair isolated continuations after direct calls to SEP/REP #$10/#$20/#$30 leaves.
 // @category 65816
 import java.io.PrintStream;
 import java.math.BigInteger;
@@ -27,7 +27,7 @@ public class Repair65816CalleeWidths extends GhidraScript {
         }
     }
 
-    private List<Address> isolatedBlock(Instruction call, Address start, int width)
+    private List<Address> isolatedBlock(Instruction call, Address start, int m, int x)
             throws Exception {
         List<Address> starts = new ArrayList<>();
         Address at = start;
@@ -39,7 +39,7 @@ public class Repair65816CalleeWidths extends GhidraScript {
                 end = at;
                 break;
             }
-            int length = immediateLength(opcode, width, width);
+            int length = immediateLength(opcode, m, x);
             if (length == 0) {
                 return null;
             }
@@ -96,8 +96,11 @@ public class Repair65816CalleeWidths extends GhidraScript {
         Instruction setter = listing.getInstructionAt(call.getFlows()[0]);
         if (setter == null || setter.getLength() != 2
                 || (!"SEP".equals(setter.getMnemonicString())
-                    && !"REP".equals(setter.getMnemonicString()))
-                || (setter.getBytes()[1] & 0xff) != 0x30) {
+                    && !"REP".equals(setter.getMnemonicString()))) {
+            return false;
+        }
+        int mask = setter.getBytes()[1] & 0xff;
+        if (mask != 0x10 && mask != 0x20 && mask != 0x30) {
             return false;
         }
         Instruction ret = listing.getInstructionAt(setter.getFallThrough());
@@ -119,11 +122,17 @@ public class Repair65816CalleeWidths extends GhidraScript {
         if (oldM == null || oldX == null) {
             return false;
         }
-        int width = "SEP".equals(setter.getMnemonicString()) ? 1 : 0;
-        if (oldM.intValue() == width && oldX.intValue() == width) {
+        if (!oldM.equals(call.getValue(mf, false))
+                || !oldX.equals(call.getValue(xf, false))) {
             return false;
         }
-        List<Address> starts = isolatedBlock(call, continuation, width);
+        int width = "SEP".equals(setter.getMnemonicString()) ? 1 : 0;
+        int m = (mask & 0x20) != 0 ? width : oldM.intValue();
+        int x = (mask & 0x10) != 0 ? width : oldX.intValue();
+        if (oldM.intValue() == m && oldX.intValue() == x) {
+            return false;
+        }
+        List<Address> starts = isolatedBlock(call, continuation, m, x);
         if (starts == null) {
             return false;
         }
@@ -132,8 +141,8 @@ public class Repair65816CalleeWidths extends GhidraScript {
         if (context == null) {
             return false;
         }
-        context = context.assign(mf, BigInteger.valueOf(width))
-            .assign(xf, BigInteger.valueOf(width));
+        context = context.assign(mf, BigInteger.valueOf(m))
+            .assign(xf, BigInteger.valueOf(x));
         int tx = currentProgram.startTransaction("Repair 65816 leaf call widths");
         boolean commit = false;
         try {
