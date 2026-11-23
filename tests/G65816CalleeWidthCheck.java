@@ -6,6 +6,7 @@ import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.Instruction;
+import ghidra.program.model.symbol.SourceType;
 
 public class G65816CalleeWidthCheck extends GhidraScript {
     private Instruction require(long offset, String mnemonic) {
@@ -25,7 +26,7 @@ public class G65816CalleeWidthCheck extends GhidraScript {
             native16 = native16.assign(lang.getRegister(register), BigInteger.ZERO);
         }
 
-        for (long entry : new long[] { 0x8200, 0x8240, 0x8280 }) {
+        for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340 }) {
             Address start = toAddr(entry);
             DisassembleCommand command = new DisassembleCommand(start, null, true);
             command.setInitialContext(native16);
@@ -37,6 +38,9 @@ public class G65816CalleeWidthCheck extends GhidraScript {
         }
 
         analyzeAll(currentProgram);
+        currentProgram.getSymbolTable().createLabel(
+            toAddr(0x8305), "PRESERVED_USER_CODE", SourceType.USER_DEFINED);
+        runScript("Repair65816CalleeWidths.java", new String[] { getScriptArgs()[1] });
         require(0x8202, "JSR");
         require(0x8210, "SEP");
         require(0x8212, "RTS");
@@ -47,10 +51,18 @@ public class G65816CalleeWidthCheck extends GhidraScript {
         require(0x8290, "BNE");
         require(0x8292, "SEP");
         require(0x8294, "RTS");
+        require(0x82c2, "JSR");
+        require(0x82d0, "REP");
+        require(0x82d2, "RTS");
+        require(0x8302, "JSR");
+        require(0x8310, "SEP");
+        require(0x8342, "JSL");
+        require(0x8350, "SEP");
+        require(0x8352, "RTL");
 
         try (PrintStream out = new PrintStream(getScriptArgs()[0])) {
-            for (long entry : new long[] { 0x8200, 0x8240, 0x8280 }) {
-                long postCall = entry + 5;
+            for (long entry : new long[] { 0x8200, 0x8240, 0x8280, 0x82c0, 0x8300, 0x8340 }) {
+                long postCall = entry + (entry == 0x8340 ? 6 : 5);
                 Instruction lda = require(postCall, "LDA");
                 Instruction ldx = currentProgram.getListing().getInstructionAt(toAddr(postCall + 2));
                 if (ldx == null || !"LDX".equals(ldx.getMnemonicString())) {
