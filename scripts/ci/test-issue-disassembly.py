@@ -3,6 +3,7 @@
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -53,12 +54,18 @@ def main() -> None:
         output = work / "result.txt"
         project = work / "project"
         project.mkdir()
+        scripts = work / "scripts"
+        scripts.mkdir()
+        shutil.copy2(ROOT / "tests" / "G65816IssueCheck.java", scripts)
+        shutil.copy2(ROOT / "scripts" / "Flag65816XceCarryJoins.java", scripts)
+        join_report = work / "xce-joins.txt"
         command = [
             analyze_headless(GHIDRA), str(project), "issues",
             "-import", str(rom_path), "-loader", "BinaryLoader",
             "-loader-baseAddr", "0x8000", "-processor", "65816:LE:16:default",
-            "-noanalysis", "-scriptPath", str(ROOT / "tests"),
+            "-noanalysis", "-scriptPath", str(scripts),
             "-postScript", "G65816IssueCheck.java", str(output), "8000", "8032",
+            "-postScript", "Flag65816XceCarryJoins.java", str(join_report),
             "-deleteProject",
         ]
         completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -101,6 +108,10 @@ def main() -> None:
         merge_length = int(merge_lines[0].split("|")[1])
         if merge_length not in (2, 3):
             raise AssertionError(f"Unexpected LDA length at ambiguous XCE: {merge_length}")
+
+        joins = join_report.read_text(encoding="utf-8").splitlines()
+        if joins != ["XCE_JOIN|008174|008171|SEC"]:
+            raise AssertionError(f"Expected only the conditional XCE join warning: {joins}")
 
         bad_references = [
             f"{address:06x}" for address, (_, _, selfrefs) in actual.items()
