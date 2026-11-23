@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Characterize M/X decoding after subroutine calls without implementing propagation."""
 
 import os
 from pathlib import Path
@@ -14,7 +13,7 @@ GHIDRA = Path(os.environ["GHIDRA_INSTALL_DIR"])
 
 
 def main() -> None:
-    rom = bytearray(0x700)
+    rom = bytearray(0x800)
     cases = {
         0x8200: "c2 30 20 10 82 a9 12 a2 34 db",
         0x8210: "e2 30 60",
@@ -48,6 +47,10 @@ def main() -> None:
         0x8590: "e2 20 d0 02 e2 10 60",
         0x85c0: "c2 30 20 d0 85 a9 34 12 a2 78 56 db",
         0x85d0: "e2 20 ea e2 10 60",
+        0x8600: "c2 30 20 10 86 a9 12 a2 34 db",
+        0x8610: "e2 30 60",
+        0x8640: "c2 30 20 50 86 a9 12 a2 20 60 ea ea",
+        0x8650: "e2 30 60",
     }
     for address, contents in cases.items():
         data = bytes.fromhex(contents)
@@ -91,23 +94,25 @@ def main() -> None:
             0x82c0: (3, 3),
             0x8300: (3, 0),
             0x8340: (2, 2),
-            0x8380: (2, 3),  # SEP M; X remains 16-bit
-            0x83c0: (2, 3),  # REP X; M remains 8-bit
-            0x8400: (3, 3),  # SEP #$31 is not a supported repair
-            0x8440: (3, 2),  # SEP X; M remains 16-bit
-            0x8480: (3, 2),  # REP M; X remains 8-bit
-            0x84c0: (2, 2),  # Two adjacent SEP setters
-            0x8500: (3, 3),  # Two adjacent REP setters
-            0x8540: (3, 2),  # SEP both, then REP M
-            0x8580: (3, 3),  # Branch between setters: skip
-            0x85c0: (3, 3),  # NOP between setters: skip
+            0x8380: (2, 3),
+            0x83c0: (2, 3),
+            0x8400: (3, 3),
+            0x8440: (3, 2),
+            0x8480: (3, 2),
+            0x84c0: (2, 2),
+            0x8500: (3, 3),
+            0x8540: (3, 2),
+            0x8580: (3, 3),
+            0x85c0: (3, 3),
+            0x8600: (3, 0),
+            0x8640: (3, 0),
         }
         if found != expected:
             raise AssertionError(f"Callee widths: expected {expected}, got {found}")
         if repair_report.read_text(encoding="utf-8").strip() != "REPAIRED|10":
             raise AssertionError("Expected exactly ten isolated leaf-call repairs")
-        print("Callee widths: ten isolated repairs, including adjacent width setters; "
-              "branching, non-adjacent, ambiguous, and user-labeled cases unchanged")
+        print("Callee widths: ten isolated repairs; user references and "
+              "overlapping instructions preserved")
 
 
 if __name__ == "__main__":

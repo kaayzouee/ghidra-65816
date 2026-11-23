@@ -1,4 +1,3 @@
-// Repair isolated continuations after one or two adjacent SEP/REP width setters.
 // @category 65816
 import java.io.PrintStream;
 import java.math.BigInteger;
@@ -11,6 +10,7 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.*;
 import ghidra.program.model.symbol.Reference;
+import ghidra.program.model.symbol.SourceType;
 
 public class Repair65816CalleeWidths extends GhidraScript {
     private int immediateLength(int opcode, int m, int x) {
@@ -64,6 +64,14 @@ public class Repair65816CalleeWidths extends GhidraScript {
                 }
             }
             CodeUnit unit = listing.getCodeUnitContaining(address);
+            if (unit != null && unit.getMaxAddress().compareTo(end) > 0) {
+                return null;
+            }
+            for (Reference ref : currentProgram.getReferenceManager().getReferencesFrom(address)) {
+                if (ref.getSource() == SourceType.USER_DEFINED) {
+                    return null;
+                }
+            }
             if (unit instanceof Instruction instruction) {
                 if (instruction.isLengthOverridden() || instruction.isFallThroughOverridden()
                         || instruction.getFlowOverride() != FlowOverride.NONE) {
