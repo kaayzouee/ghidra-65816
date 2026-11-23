@@ -292,34 +292,40 @@ class InstructionSemanticRegressionTests(unittest.TestCase):
         self.assertNotIn("wai();", body)
         self.assertNotIn("define pcodeop wai;", SINC)
 
-    def test_native_xce_preserves_width_context_and_index_high_bytes(self) -> None:
+    def test_xce_uses_known_carry_for_decode_context(self) -> None:
+        self.assertIn("ctx_carry=(4,5) noflow", SINC)
+        for mnemonic, value in (("CLC", "1"), ("SEC", "2")):
+            header, _ = instruction_blocks(mnemonic)[0]
+            self.assertIn(f"ctx_carry={value}; globalset(inst_next, ctx_carry)", header)
+        for mnemonic, value in (("REP", "op_cf"), ("SEP", "op_cf * 2")):
+            self.assertEqual(len(instruction_blocks(mnemonic)), 5)
+            for header, _ in instruction_blocks(mnemonic):
+                self.assertIn(f"ctx_carry={value}; globalset(inst_next, ctx_carry)", header)
+
         blocks = instruction_blocks("XCE")
-        native = [ (header, body) for header, body in blocks if "ctx_EF=0" in header ]
-        self.assertEqual(len(native), 1)
-        header, body = native[0]
-
-        self.assertIn("ctx_MF=ctx_MF | CF", header)
-        self.assertIn("ctx_XF=ctx_XF | CF", header)
-
-        native_to_native = body.split("\n    <to_native>", 1)[1].split("\n    <end>", 1)[0]
-        self.assertNotRegex(native_to_native, r"\bXHigh\s*=\s*0")
-        self.assertNotRegex(native_to_native, r"\bYHigh\s*=\s*0")
+        self.assertEqual(len(blocks), 4)
+        for mode, macro in (("0", "native"), ("1", "emulation")):
+            constructors = [(header, body) for header, body in blocks
+                            if f"ctx_EF={mode}" in header]
+            self.assertEqual(len(constructors), 2)
+            self.assertEqual(sum("ctx_carry=2" in header for header, _ in constructors), 1)
+            self.assertTrue(all(f"xce_from_{macro}();" in body for _, body in constructors))
+        self.assertIn("ctx_EF=1; globalset(inst_next, ctx_EF)",
+                      next(header for header, _ in blocks
+                           if "ctx_EF=0 & ctx_carry=2" in header))
+        self.assertNotIn("ctx_EF=CF", SINC)
 
     def test_xce_applies_register_cleanup_only_on_mode_transitions(self) -> None:
-        blocks = instruction_blocks("XCE")
-        native = [body for header, body in blocks if "ctx_EF=0" in header]
-        emulation = [body for header, body in blocks if "ctx_EF=1" in header]
-        self.assertEqual(len(native), 1)
-        self.assertEqual(len(emulation), 1)
-
-        native_body = native[0]
+        native_body = SINC.split("macro xce_from_native() {", 1)[1].split("\n}", 1)[0]
         to_emulation = native_body.split("\n#    <to_emulation>", 1)[1].split("\n    <to_native>", 1)[0]
-        self.assertIn("XHigh = 0;", to_emulation)
-        self.assertIn("YHigh = 0;", to_emulation)
-        self.assertIn("SPHigh = 1;", to_emulation)
+        to_native = native_body.split("\n    <to_native>", 1)[1].split("\n    <end>", 1)[0]
+        for action in ("XHigh = 0;", "YHigh = 0;", "SPHigh = 1;"):
+            self.assertIn(action, to_emulation)
+        self.assertNotIn("XHigh = 0;", to_native)
+        self.assertNotIn("YHigh = 0;", to_native)
         self.assertIn("CF = 0;", native_body)
 
-        emulation_body = emulation[0]
+        emulation_body = SINC.split("macro xce_from_emulation() {", 1)[1].split("\n}", 1)[0]
         to_native = emulation_body.split("\n    <to_native>", 1)[1].split("\n    <end>", 1)[0]
         self.assertIn("XHigh = 0;", to_native)
         self.assertIn("YHigh = 0;", to_native)

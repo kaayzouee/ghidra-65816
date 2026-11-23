@@ -38,6 +38,7 @@ define context contextreg
     ctx_XF=(1,1)
     # DF removed from slot 2
     ctx_EF=(3,3)
+    ctx_carry=(4,5) noflow
 ;
 # Unfortunately the ctx_xx fields can't be used at all in P-code macros, and
 # are a pain to use in a semantic section.
@@ -447,6 +448,7 @@ BIT_R16: ImmVal16    is op=0x89; ImmVal16  { export ImmVal16; }
 }
 
 :CLC    is op=0x18
+    [ ctx_carry=1; globalset(inst_next, ctx_carry); ]
 {
     CF = 0;
 }
@@ -1366,25 +1368,29 @@ macro do_rep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
 }
 :REP "#$"op_flags    is (ctx_EF=0 & op=0xc2; op_flags & op_mf=0 & op_xf=0
     & op_nf & op_vf & op_df & op_if & op_zf & op_cf)
+    [ ctx_carry=op_cf; globalset(inst_next, ctx_carry); ]
 {
     do_rep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
 :REP "#$"op_flags    is (ctx_EF=0 & op=0xc2; op_flags & op_mf=0 & op_xf=1
     & op_nf & op_vf & op_df & op_if & op_zf & op_cf)
-    [ ctx_XF=0; globalset(inst_start, ctx_XF); ]
+    [ ctx_XF=0; globalset(inst_start, ctx_XF);
+      ctx_carry=op_cf; globalset(inst_next, ctx_carry); ]
 {
     do_rep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
 :REP "#$"op_flags    is (ctx_EF=0 & op=0xc2; op_flags & op_mf=1 & op_xf=0
     & op_nf & op_vf & op_df & op_if & op_zf & op_cf)
-    [ ctx_MF=0; globalset(inst_start, ctx_MF); ]
+    [ ctx_MF=0; globalset(inst_start, ctx_MF);
+      ctx_carry=op_cf; globalset(inst_next, ctx_carry); ]
 {
     do_rep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
 :REP "#$"op_flags    is (ctx_EF=0 & op=0xc2; op_flags & op_mf=1 & op_xf=1
     & op_nf & op_vf & op_df & op_if & op_zf & op_cf)
     [ ctx_XF=0; globalset(inst_start, ctx_XF);
-      ctx_MF=0; globalset(inst_start, ctx_MF); ]
+      ctx_MF=0; globalset(inst_start, ctx_MF);
+      ctx_carry=op_cf; globalset(inst_next, ctx_carry); ]
 {
     do_rep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
@@ -1393,6 +1399,7 @@ macro do_rep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
 # "Neither the break flag nor bit five (the 6502’s undefined flag bit) are affected by REP."
 :REP "#$"op_flags    is (ctx_EF=1 & op=0xc2; op_flags
     & op_nf & op_vf & op_df & op_if & op_zf & op_cf)
+    [ ctx_carry=op_cf; globalset(inst_next, ctx_carry); ]
 {
     do_rep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
@@ -1688,6 +1695,7 @@ macro do_ror16(_out, _data) {
 }
 
 :SEC    is op=0x38
+    [ ctx_carry=2; globalset(inst_next, ctx_carry); ]
 {
     CF = 1;
 }
@@ -1713,12 +1721,14 @@ macro do_sep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
 }
 :SEP "#$"op_flags    is (ctx_EF=0 & op=0xe2; op_flags & op_mf=0 & op_xf=0 &
     op_nf & op_vf & op_df & op_if & op_zf & op_cf)
+    [ ctx_carry=op_cf * 2; globalset(inst_next, ctx_carry); ]
 {
     do_sep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
 :SEP "#$"op_flags    is (ctx_EF=0 & op=0xe2; op_flags & op_mf=0 & op_xf=1 &
     op_nf & op_vf & op_df & op_if & op_zf & op_cf)
-    [ ctx_XF=1; globalset(inst_start, ctx_XF); ]
+    [ ctx_XF=1; globalset(inst_start, ctx_XF);
+      ctx_carry=op_cf * 2; globalset(inst_next, ctx_carry); ]
 {
     do_sep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
     # "When a sixteen-bit index register is switched to eight bits, the high byte is lost
@@ -1728,14 +1738,16 @@ macro do_sep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
 }
 :SEP "#$"op_flags    is (ctx_EF=0 & op=0xe2; op_flags & op_mf=1 & op_xf=0 &
     op_nf & op_vf & op_df & op_if & op_zf & op_cf)
-    [ ctx_MF=1; globalset(inst_start, ctx_MF); ]
+    [ ctx_MF=1; globalset(inst_start, ctx_MF);
+      ctx_carry=op_cf * 2; globalset(inst_next, ctx_carry); ]
 {
     do_sep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
 :SEP "#$"op_flags    is (ctx_EF=0 & op=0xe2; op_flags & op_mf=1 & op_xf=1 &
     op_nf & op_vf & op_df & op_if & op_zf & op_cf)
     [ ctx_XF=1; globalset(inst_start, ctx_XF);
-      ctx_MF=1; globalset(inst_start, ctx_MF); ]
+      ctx_MF=1; globalset(inst_start, ctx_MF);
+      ctx_carry=op_cf * 2; globalset(inst_next, ctx_carry); ]
 {
     do_sep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
     # "When a sixteen-bit index register is switched to eight bits, the high byte is lost
@@ -1748,6 +1760,7 @@ macro do_sep(op_nf, op_vf, op_df, op_if, op_zf, op_cf) {
 # "Neither the break flag nor bit five (the 6502’s non-flag bit) is affected by SEP."
 :SEP "#$"op_flags    is (ctx_EF=1 & op=0xe2; op_flags &
     op_nf & op_vf & op_df & op_if & op_zf & op_cf)
+    [ ctx_carry=op_cf * 2; globalset(inst_next, ctx_carry); ]
 {
     do_sep(op_nf:1, op_vf:1, op_df:1, op_if:1, op_zf:1, op_cf:1);
 }
@@ -2027,18 +2040,7 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
     flag8_NZ(A);
 }
 
-# XCE native -> ?
-# UNKNOWN: the correct behaviour of XCE when native -> native
-:XCE    is ctx_EF=0 & op=0xfb
-    [ # This is only a static disassembly-context hint. CF is a runtime flag,
-      # so globalset cannot reliably select the next decode mode when Carry is unknown.
-      # Runtime mode transitions after XCE remain a known approximation in this spec.
-      ctx_EF=CF; globalset(inst_next, ctx_EF);
-      # If carry is clear, native mode is retained and M/X must be preserved.
-      # If carry is set, XCE enters emulation mode and both widths are forced to 8 bits.
-      ctx_MF=ctx_MF | CF; globalset(inst_next, ctx_MF);
-      ctx_XF=ctx_XF | CF; globalset(inst_next, ctx_XF); ]
-{
+macro xce_from_native() {
     local is_to_native:1 = (CF == 0);
     if (is_to_native) goto <to_native>;
 
@@ -2057,13 +2059,20 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
     CF = 0;
 }
 
-# XCE emulation -> ?
-# UNKNOWN: the correct behaviour of XCE when emulation -> emulation
-:XCE    is ctx_EF=1 & op=0xfb
-    [ ctx_EF=CF; globalset(inst_next, ctx_EF);
+:XCE    is ctx_EF=0 & ctx_carry=2 & op=0xfb
+    [ ctx_EF=1; globalset(inst_next, ctx_EF);
       ctx_MF=1; globalset(inst_next, ctx_MF);
       ctx_XF=1; globalset(inst_next, ctx_XF); ]
 {
+    xce_from_native();
+}
+
+:XCE    is ctx_EF=0 & op=0xfb
+{
+    xce_from_native();
+}
+
+macro xce_from_emulation() {
     local is_to_native:1 = (CF == 0);
     if (is_to_native) goto <to_native>;
 
@@ -2081,4 +2090,17 @@ TEST_OP: RefDP    is dd=1; RefDP  { export RefDP; }
 
     <end>
     CF = 1;
+}
+
+:XCE    is ctx_EF=1 & ctx_carry=2 & op=0xfb
+{
+    xce_from_emulation();
+}
+
+:XCE    is ctx_EF=1 & op=0xfb
+    [ ctx_EF=0; globalset(inst_next, ctx_EF);
+      ctx_MF=1; globalset(inst_next, ctx_MF);
+      ctx_XF=1; globalset(inst_next, ctx_XF); ]
+{
+    xce_from_emulation();
 }
