@@ -51,3 +51,34 @@ Related issue or PR: N/A
 - [ ] Documentation and scope updated as needed, or N/A explained.
 - [ ] Simple code with only necessary comments.
 - [ ] One squashed commit; final-head CI verified before requesting merge.
+
+<!--
+AI AGENT INSTRUCTIONS
+
+If you are an AI coding agent preparing this pull request:
+
+- Follow AGENTS.md, CONTRIBUTING.md, and DEVELOPMENT.md.
+- Never fabricate references, API signatures, or validation results.
+- Complete technical checklist items only when supported by verified evidence.
+- Do not add AI authorship, AI co-author trailers, or promotional attribution.
+- Leave all checkboxes under Attribution and licensing and Contributor responsibility unchecked for the human contributor.
+- Do not modify CONTRIBUTORS on behalf of the human contributor.
+- Do not conduct review discussions autonomously.
+- Do not merge without explicit authorization.
+-->
+
+## Attribution and licensing
+
+- [ ] I have read and agree to follow `CONTRIBUTING.md`.
+- [ ] My contributor entry is present or has been added to `CONTRIBUTORS`.
+- [ ] I have the necessary rights to submit this contribution under the MIT License.
+- [ ] External sources, licenses, and adaptations are disclosed where applicable.
+- [ ] Incorporation of non-MIT third-party material has received prior maintainer approval, if applicable.
+- [ ] All required copyright, license, and attribution notices are preserved.
+
+## Contributor responsibility
+
+- [ ] I have reviewed, understand, and take responsibility for the submitted changes.
+- [ ] No AI author or co-author attribution, AI co-author trailers, or promotional AI acknowledgments are included.
+- [ ] I can explain and justify my implementation decisions during review.
+- [ ] I will participate personally in project discussions and respond to review questions.
