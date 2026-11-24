@@ -11,29 +11,40 @@ Entries must use the following format:
 
 NAME:    Display Name (@username)
 COMMIT:  Full Git commit hash
+LICENSE: MIT (or other licenses, for example, GPLv3)
 NOTE(S): Optional (need to split commits)
 ---
 
 NAME:    Greg Kennedy (@greg-kennedy)
 COMMIT:  6df2b00cf27af4bc3c259cf499ca2ea9b6f92522
+LICENSE: MIT
 
 NAME:    Nicholas Starke (@nstarke)
 COMMIT:  aleph-void/ghidra-65816/commit/e541cb9e83922cb07f2dfbb1376fd330a61bdd0d
          aleph-void/ghidra-65816/commit/dc8195806014e4f11f62b09f563815fa45576916
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/387a4eee7335137dcdf48b234a07048119d844d4
 NOTE(S): Broader changes from this commit are not included.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/7b340b771a6c84fff824361e7beaf0802ed318dc
 NOTE(S): Core WAI/STP control-flow changes ported. Other changes adapted/omitted.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/7985af33a5168363e9158a34f41d92f63ea3990b
 NOTE(S): Core direct-control-flow fix ported. Regression tests added to verify
          indirect transfers remain computed.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/2d2f11fd8238398ef1469bff21d8b85d51056ae9
 NOTE(S): Reference, different implementaion.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/fc1f9182d1969cbcd3f0957052f449ae202fa26d
 NOTE(S): Native RTI X=0 regression adapted, unrelated test omitted.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/5bc71ec13e774483fc75f64f3fbd7c87a178290e
 NOTE(S): Explicit adaptation.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/fb8f462d5604aaa8d9fe43ed7d9c2b59595716ec
 NOTE(S): Explicit reference.
+LICENSE: MIT
 COMMIT:  aleph-void/ghidra-65816/commit/5df176aa1eb47db6aea0202733e432c082b90646
 NOTE(S): Partial implementation and reference.
+LICENSE: MIT
