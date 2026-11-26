@@ -1,8 +1,31 @@
 name: Feature request
 description: Propose a processor-analysis improvement or development workflow enhancement.
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: ["enhancement", "type: feature"]
 body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Technical areas
+      description: Select all that apply, or choose unsure for maintainer triage.
+      multiple: true
+      options:
+        - sleigh
+        - pcode
+        - cpu-context
+        - registers
+        - control-flow
+        - memory
+        - decompiler
+        - loader
+        - compatibility
+        - ci
+        - tests
+        - scripts
+        - documentation
+        - unsure
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
@@ -15,21 +38,6 @@ body:
     attributes:
       label: Proposed solution
       description: Describe the behavior you would like and any alternatives considered.
-    validations:
-      required: true
-  - type: dropdown
-    id: area
-    attributes:
-      label: Area
-      options:
-        - Instruction decoding / disassembly
-        - P-code / CPU semantics
-        - Registers, flags, or CPU mode
-        - Bank-aware addressing / control flow
-        - Platform or loader integration
-        - Tests / CI / developer tooling
-        - Documentation
-        - Other
     validations:
       required: true
   - type: textarea

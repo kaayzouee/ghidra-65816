@@ -1,8 +1,31 @@
 name: Bug report
 description: Report an incorrect analysis result, processor-semantic bug, or development/test failure.
 title: "[Bug]: "
-labels: ["bug"]
+labels: ["bug", "type: bug"]
 body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Technical areas
+      description: Select all that apply, or choose unsure for maintainer triage.
+      multiple: true
+      options:
+        - sleigh
+        - pcode
+        - cpu-context
+        - registers
+        - control-flow
+        - memory
+        - decompiler
+        - loader
+        - compatibility
+        - ci
+        - tests
+        - scripts
+        - documentation
+        - unsure
+    validations:
+      required: true
   - type: markdown
     attributes:
       value: |
@@ -13,22 +36,6 @@ body:
       label: Summary
       description: What is wrong?
       placeholder: A concise description of the incorrect behavior.
-    validations:
-      required: true
-  - type: dropdown
-    id: area
-    attributes:
-      label: Area
-      options:
-        - Disassembly / instruction decoding
-        - P-code / CPU semantics
-        - Registers, flags, or CPU mode
-        - Bank boundaries / addressing
-        - Control flow / calls and returns
-        - Build / SLEIGH compilation
-        - Tests / CI
-        - Documentation
-        - Other
     validations:
       required: true
   - type: textarea
