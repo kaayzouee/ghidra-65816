@@ -110,3 +110,4 @@ Contributions may be rejected if they do not comply with the project's technical
 Passing automated checks does not guarantee acceptance.
 
 These guidelines govern contributions to this repository and do not impose additional restrictions on the rights granted under the MIT License.
+See [Labeling and human triage](docs/triage.md) for issue and pull request classification.

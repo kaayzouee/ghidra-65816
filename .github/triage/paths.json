@@ -1,0 +1,58 @@
+{
+  "type: documentation": [
+    "*.md",
+    ".github/*.md",
+    "docs/**/*.md",
+    "CONTRIBUTORS",
+    "data/languages/all instructions.ods",
+    "src/test/resources/singlestep/README.md"
+  ],
+  "area: sleigh": [
+    "data/languages/*.slaspec",
+    "data/languages/*.sinc"
+  ],
+  "area: pcode": [
+    "data/languages/*.sinc"
+  ],
+  "area: registers": [
+    "data/languages/*.pspec",
+    "data/languages/658xx.sinc"
+  ],
+  "area: decompiler": [
+    "data/languages/*.cspec"
+  ],
+  "area: compatibility": [
+    "data/languages/*.ldefs",
+    "data/languages/*.opinion",
+    "extension.properties"
+  ],
+  "area: memory": [
+    "data/languages/658xx_memaccess*.sinc"
+  ],
+  "area: control-flow": [
+    "data/languages/658xx_memaccess_pc.sinc",
+    "scripts/Repair65816BankFallthrough.java"
+  ],
+  "area: ci": [
+    ".github/workflows/**",
+    ".github/triage/**",
+    "scripts/ci/**",
+    "build.gradle",
+    "Module.manifest",
+    "extension.properties",
+    ".github/ISSUE_TEMPLATE/**"
+  ],
+  "area: scripts": [
+    "scripts/**"
+  ],
+  "area: tests": [
+    "tests/**",
+    "src/test/**",
+    "scripts/ci/test-*.py",
+    ".github/triage/*.test.cjs"
+  ],
+  "area: cpu-context": [
+    "scripts/Flag65816XceCarryJoins.java",
+    "scripts/Repair65816CalleeWidths.java"
+  ]
+}

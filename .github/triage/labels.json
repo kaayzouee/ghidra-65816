@@ -1,0 +1,68 @@
+{
+  "type": {
+    "color": "1D76DB",
+    "labels": {
+      "bug": "Reported unexpected behavior pending investigation",
+      "enhancement": "Improvement to existing behavior",
+      "feature": "Proposed new functionality",
+      "documentation": "Documentation or contributor guidance",
+      "testing": "Test coverage or test infrastructure",
+      "refactor": "Internal restructuring",
+      "discussion": "Question or design discussion"
+    }
+  },
+  "area": {
+    "color": "006B75",
+    "labels": {
+      "sleigh": "SLEIGH language and instruction decoding",
+      "pcode": "Instruction-level P-code semantics",
+      "cpu-context": "CPU mode and decode context",
+      "registers": "Processor registers and their definitions",
+      "control-flow": "Branches, calls, returns, and flow analysis",
+      "memory": "Addressing, banks, and memory access",
+      "decompiler": "Decompilation and compiler specifications",
+      "loader": "Binary import and loader integration",
+      "compatibility": "Language registration and version compatibility",
+      "ci": "Build configuration and GitHub automation",
+      "tests": "Regression tests and fixtures",
+      "scripts": "Analysis scripts and development utilities"
+    }
+  },
+  "priority": {
+    "color": "B60205",
+    "labels": {
+      "critical": "Maintainer-assigned critical priority",
+      "high": "Maintainer-assigned high priority",
+      "medium": "Maintainer-assigned medium priority",
+      "low": "Maintainer-assigned low priority"
+    }
+  },
+  "status": {
+    "color": "FBCA04",
+    "labels": {
+      "needs-triage": "Awaiting initial maintainer triage",
+      "needs-repro": "Reproduction details requested",
+      "needs-review": "Maintainer review requested",
+      "needs-test": "Additional test evidence requested",
+      "confirmed": "Maintainer verified the reported behavior",
+      "blocked": "Work depends on an unresolved prerequisite",
+      "wontfix": "Maintainer decided against a fix"
+    }
+  },
+  "cpu": {
+    "color": "5319E7",
+    "labels": {
+      "bank-boundary": "Program or data bank boundary behavior",
+      "status-flags": "Processor status flag behavior",
+      "native-mode": "65816 native mode behavior",
+      "emulation-mode": "65816 emulation mode behavior"
+    }
+  },
+  "platform": {
+    "color": "C2E0C6",
+    "labels": {
+      "65802": "65802 processor variant",
+      "snes": "Super Nintendo platform integration"
+    }
+  }
+}
