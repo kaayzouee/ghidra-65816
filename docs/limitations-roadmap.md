@@ -18,4 +18,5 @@
 3. **Compiler ABIs:** `__near` and `__far` are example conventions, not OpenSNES-compatible. Stack argument ordering depends on [upstream PR #9921](https://github.com/NationalSecurityAgency/ghidra/pull/9921); 32-bit returns need separate handling. See the [ABI gap](opensnes-cc65816-abi-gap.md).
 4. **Coverage:** add focused regressions for verified CPU bugs; use the optional full SingleStepTests workflow when appropriate.
 
-SNES loading, automatic vector discovery, 65802 support, and cycle accuracy are outside the current processor-module scope.
+The [optional SNES loader](../README.md#snes-cartridge-import) handles cartridge mapping and reset discovery.
+Generic automatic vector discovery, 65802 support, and cycle accuracy are outside the processor-module scope.

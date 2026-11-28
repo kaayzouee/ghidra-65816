@@ -10,6 +10,31 @@ This is an experimental community continuation of [achan1989/ghidra-65816](https
 2. Restart Ghidra.
 3. Import the binary, select **65816**, and configure its memory map and initial CPU state.
 
+### SNES cartridge import
+
+For cartridge import, install the extension ZIP built for your Ghidra release through
+**File → Install Extensions**, then restart Ghidra. Install one copy of the processor
+language: move any manually installed 65816 module outside Ghidra before enabling
+the ZIP. Import a cartridge and select **SNES ROM**. The loader maps ROM and WRAM
+and disassembles the instruction at `RESET`. **Raw Binary** remains available.
+
+The loader accepts ROM-only LoROM (32 KiB–4 MiB) and HiROM (64 KiB–4 MiB)
+with power-of-two payloads, optionally preceded by a 512-byte copier header.
+Detection requires a matching size code, ordinary slow/fast map mode, zero
+cartridge type and RAM size, and a reset vector in an upper ROM window.
+A printable nonblank 21-byte title or complementary checksum words supply
+additional evidence. Ambiguous headers are rejected. Checksum-word consistency
+does not verify the payload checksum.
+
+LoROM maps upper 32 KiB windows. Board-dependent lower-half LoROM windows
+are left unmapped. HiROM maps full cartridge banks and upper system-bank
+windows. Both use uninitialized WRAM with low 8 KiB mirrors. MMIO, SRAM,
+enhancement chips, extended maps and interleaved layouts are outside this release.
+Only reset receives an entry point from this loader.
+
+To build, set `GHIDRA_INSTALL_DIR` to the target release and run
+`gradle buildExtension`. The ZIP is written to `dist/`.
+
 ## CPU state
 
 Set context and registers for each entry point:
@@ -39,7 +64,7 @@ Use **Processor Options...** for `MF`, `XF`, and `EF`; use **Set Register Values
 - Static analysis cannot always infer `MF`/`XF`/`EF` from unknown stack contents, computed Carry, or conflicting paths. After disassembly, run [Flag65816XceCarryJoins.java](scripts/Flag65816XceCarryJoins.java) from Ghidra's Script Manager to mark conditional branches that bypass a Carry setter before `XCE` with Warning bookmarks. This is a diagnostic, not path-sensitive decoding; inspect flagged paths and set context manually. See the [limitations roadmap](docs/limitations-roadmap.md).
 - **Callee M/X propagation is partial.** After analysis, the optional [Repair65816CalleeWidths.java](scripts/Repair65816CalleeWidths.java) script handles direct calls to leaves with one or two adjacent `SEP/REP #$10/#$20/#$30` instructions before `RTS/RTL`, followed by short isolated immediate-only code. It skips ambiguous flows, analyst-defined references, labels, and code it cannot safely replace; other cases require manual context correction.
 - `WAI` is modelled as fall-through; `STP` as a self-loop. Wait-state, interrupt wake-up, and hardware reset are not emulated.
-- This repository does not include a SNES ROM loader, automatic vector analyzer, or 65802 variant.
+- Automatic interrupt-vector analysis and a 65802 variant are outside the CPU module's scope.
 - Passing tests does not prove full hardware correctness.
 
 See [supported scope](docs/SUPPORT.md) and [development/testing](DEVELOPMENT.md).

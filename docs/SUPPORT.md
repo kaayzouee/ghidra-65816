@@ -8,11 +8,13 @@ This repository implements the WDC W65C816S language and instruction-level P-cod
 - Explicit handling of accumulator/index widths and emulation mode where analysis has enough context.
 - Regression tests for P-code behavior, disassembly, immediate constants, and selected bank-boundary cases.
 - Clear documentation of known gaps.
+- Optional SNES cartridge import through the packaged extension for the ROM-only
+  LoROM and HiROM geometries described in the [installation guide](../README.md#snes-cartridge-import).
 
 ## Not included
 
 - **65802:** no variant support in this repository.
-- **SNES loader or automatic vector analyzer:** these are platform integrations, not part of the CPU module.
+- **Generic automatic vector analyzer:** SNES reset discovery belongs to the optional loader.
 - **Cycle-accurate timing, bus behavior, or interrupt wake-up:** these are not modeled by the P-code.
 - **Perfect automatic context recovery:** unknown stack status, computed Carry at `XCE`, and conflicting paths can require manual context.
 

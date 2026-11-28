@@ -19,6 +19,34 @@ if (!ghidraInstallDir) {
 
 apply from: new File(ghidraInstallDir, 'support/buildExtension.gradle')
 
+def compiledLanguage = layout.buildDirectory.file('sleigh/65816.sla')
+tasks.register('compileExtensionLanguage', JavaExec) {
+    inputs.files(fileTree('data/languages') { include '*.slaspec', '*.sinc' })
+    inputs.property('ghidraVersion', ghidra_version)
+    outputs.file(compiledLanguage)
+    classpath = sourceSets.main.compileClasspath
+    mainClass = 'ghidra.pcodeCPort.slgh_compile.SleighCompile'
+    args file('data/languages/65816.slaspec'), compiledLanguage.get().asFile
+    doFirst { compiledLanguage.get().asFile.parentFile.mkdirs() }
+}
+
+buildExtension {
+    dependsOn compileExtensionLanguage
+    from(compiledLanguage) { into "${project.name}/data/languages" }
+    eachFile { entry ->
+        def path = entry.path.substring(entry.path.indexOf('/') + 1)
+        if (path == 'data/languages/65816.sla') {
+            if (entry.file != compiledLanguage.get().asFile) entry.exclude()
+        } else if (!(path in ['Module.manifest', 'extension.properties', 'LICENSE', 'README.md',
+                              "lib/${project.name}.jar".toString(), "lib/${project.name}-src.zip".toString()]) &&
+                   !(path ==~ /data\/languages\/658[^\/]*\.(sinc|slaspec|cspec|pspec|ldefs|opinion)/) &&
+                   !(path ==~ /scripts\/[^\/]+\.java/) && !(path ==~ /docs\/[^\/]+\.md/)) {
+            entry.exclude()
+        }
+    }
+    includeEmptyDirs = false
+}
+
 test {
     useJUnitPlatform()
 
