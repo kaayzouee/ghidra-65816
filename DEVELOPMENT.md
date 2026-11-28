@@ -16,6 +16,14 @@ bash scripts/ci/compile-sleigh.sh /path/to/ghidra_12.1.4_PUBLIC
 
 The script compiles a temporary copy twice and checks that the output matches. It does not prove CPU correctness.
 
+## Packaged SNES loader check
+
+Run `gradle buildExtension` with `GHIDRA_INSTALL_DIR` pointing to the target release.
+Extract the resulting ZIP into that installation's `Ghidra/Extensions` directory
+in a clean test installation with no other 65816 module. Run
+`python scripts/ci/test-snes-loader.py` to exercise automatic format selection,
+the imported memory map, reset disassembly, and an explicit Raw Binary import.
+
 ## Runtime P-code tests
 
 CI tests Ghidra 12.1, 12.1.2, 12.1.3, and 12.1.4 with Java 21 and Gradle 8.5,

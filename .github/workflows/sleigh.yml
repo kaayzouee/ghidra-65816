@@ -140,6 +140,26 @@ jobs:
           SINGLESTEP_FIXTURE: build/singlestep/subset.json
         run: gradle --no-daemon test --info --stacktrace
 
+      - name: Verify packaged SNES loader and raw import
+        run: |
+          package_root=$(mktemp -d)
+          trap 'rm -rf "$package_root"' EXIT
+          mkdir "$package_root/ghidra-65816"
+          git archive HEAD | tar -x -C "$package_root/ghidra-65816"
+          cd "$package_root/ghidra-65816"
+          printf stale > data/languages/65816.sla
+          mkdir .audit
+          touch .audit/private.log local.sfc
+          gradle --no-daemon buildExtension
+          sla=ghidra-65816/data/languages/65816.sla
+          test "$(unzip -Z1 dist/*.zip | grep -Fxc "$sla")" -eq 1
+          unzip -p dist/*.zip "$sla" > "$package_root/packed.sla"
+          test "$(sha256sum < "$package_root/packed.sla")" = "$(sha256sum < build/sleigh/65816.sla)"
+          if unzip -Z1 dist/*.zip | grep -E 'private\.log|local\.sfc'; then exit 1; fi
+          mv "$GHIDRA_EXTERNAL_MODULES" "$RUNNER_TEMP/cpu-only-module"
+          unzip -q dist/*.zip -d "$GHIDRA_INSTALL_DIR/Ghidra/Extensions"
+          python scripts/ci/test-snes-loader.py
+
       - name: Upload runtime-test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
